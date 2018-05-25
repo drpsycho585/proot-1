@@ -27,6 +27,7 @@
 #include <fcntl.h>       /* AT_FDCWD, */
 #include <limits.h>      /* PATH_MAX, */
 
+#include "cli/note.h"
 #include "syscall/syscall.h"
 #include "syscall/sysnum.h"
 #include "syscall/socket.h"
@@ -568,8 +569,9 @@ int translate_syscall_enter(Tracee *tracee)
 
 end:
 	status2 = notify_extensions(tracee, SYSCALL_ENTER_END, status, 0);
-	if (status2 < 0)
+	if (status2 < 0) {
 		status = status2;
+	}
 
 	return status;
 }

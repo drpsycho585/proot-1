@@ -39,6 +39,24 @@ typedef enum {
 	 * reports this errno as-is.  */
 	GUEST_PATH,
 
+	/* translate_and_check_exec notifies extensions with the host
+         * path of the executable that is being checked */
+        EXEC_PATH,
+
+        /* link2symlink notifies other extensions when it is moving
+         * a file */
+        LINK2SYMLINK_RENAME,
+
+        /* link2symlink notifies other extensions when it is unlinking
+         * a file */
+        LINK2SYMLINK_UNLINK,
+
+	/* The canonicalization succeed: "(char *) data1" is the
+         * translated path from the host point-of-view.  It can be
+         * substituted by the extension.  If the extension returns <
+         * 0, then PRoot reports this errno as-is.  */
+        TRANSLATED_PATH,
+
 	/* A canonicalized host path is being accessed during the
 	 * translation of a guest path: "(char *) data1" is the
 	 * canonicalized host path and "(bool) data2" is true if it is
@@ -48,12 +66,6 @@ typedef enum {
 	 * If the extension returns < 0, then PRoot reports this errno
 	 * as-is.  */
 	HOST_PATH,
-
-	/* The canonicalization succeed: "(char *) data1" is the
-	 * translated path from the host point-of-view.  It can be
-	 * substituted by the extension.  If the extension returns <
-	 * 0, then PRoot reports this errno as-is.  */
-	TRANSLATED_PATH,
 
 	/* The tracee enters a syscall, and PRoot hasn't do anything
 	 * yet.  If the extension returns > 0, then PRoot skips its
@@ -184,6 +196,9 @@ static inline int notify_extensions(Tracee *tracee, ExtensionEvent event,
 /* Built-in extensions.  */
 extern int kompat_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
 extern int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+extern int hidden_files_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+extern int port_switch_callback(Extension *extension, ExtensionEvent event, intptr_t data1 UNUSED, intptr_t data2 UNUSED);
 extern int link2symlink_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
+extern int fix_symlink_size_callback(Extension *extension, ExtensionEvent event, intptr_t d1, intptr_t d2);
 
 #endif /* EXTENSION_H */

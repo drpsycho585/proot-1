@@ -57,10 +57,13 @@ static int handle_option_V(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_h(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_k(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_0(Tracee *tracee, const Cli *cli, const char *value);
+static int handle_option_l(Tracee *tracee, const Cli *cli, const char *value);
+static int handle_option_L(Tracee *tracee, const Cli *cli, const char *value);
+static int handle_option_H(Tracee *tracee, const Cli *cli, const char *value);
+static int handle_option_p(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_i(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_R(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_S(Tracee *tracee, const Cli *cli, const char *value);
-static int handle_option_link2symlink(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_kill_on_exit(Tracee *tracee, const Cli *cli, const char *value);
 
 static int pre_initialize_bindings(Tracee *, const Cli *, size_t, char *const *, size_t);
@@ -166,6 +169,38 @@ Copyright (C) 2015 STMicroelectronics, licensed under GPL v2 or later.",
 \tinformation is printed to the standard error stream.  A negative\n\
 \tvalue makes PRoot quiet except on fatal errors.",
 	},
+        { .class = "Regular options",
+          .arguments = {
+                { .name = "-H", .separator = '\0', .value = NULL },
+                { .name = NULL, .separator = '\0', .value = NULL } },
+          .handler = handle_option_H,
+          .description = "Hide files and directories starting with '.proot.' .",
+          .detail = "",
+        },
+        { .class = "Regular options",
+          .arguments = {
+                { .name = "-p", .separator = '\0', .value = NULL },
+                { .name = NULL, .separator = '\0', .value = NULL } },
+          .handler = handle_option_p,
+          .description = "Modify bindings to protected ports to use a higher port number.",
+          .detail = "",
+        },
+        { .class = "Regular options",
+          .arguments = {
+                { .name = "-l", .separator = '\0', .value = NULL },
+                { .name = NULL, .separator = '\0', .value = NULL } },
+          .handler = handle_option_l,
+          .description = "Convert hard links to be symbolic links.",
+          .detail = "",
+        },
+        { .class = "Regular options",
+          .arguments = {
+                { .name = "-L", .separator = '\0', .value = NULL },
+                { .name = NULL, .separator = '\0', .value = NULL } },
+          .handler = handle_option_L,
+          .description = "Correct the size returned from lstat for symbolic links.",
+          .detail = "",
+        },
 	{ .class = "Regular options",
 	  .arguments = {
 		{ .name = "-V", .separator = '\0', .value = NULL },
@@ -226,15 +261,6 @@ Copyright (C) 2015 STMicroelectronics, licensed under GPL v2 or later.",
 \tgid.  Likewise, files actually owned by the current user and\n\
 \tgroup appear as if they were owned by uid and gid instead.\n\
 \tNote that the -0 option is the same as -i 0:0.",
-	},
-	{ .class = "Extension options",
-	  .arguments = {
-		{ .name = "--link2symlink", .separator = '\0', .value = NULL },
-		{ .name = NULL, .separator = '\0', .value = NULL } },
-	  .handler = handle_option_link2symlink,
-	  .description = "Replace hard links with symlinks, pretending they are really hardlinks",
-	  .detail = "\tEmulates hard links with symbolic links when SELinux policies\n\
-\tdo not allow hard links.",
 	},
 	{ .class = "Alias options",
 	  .arguments = {

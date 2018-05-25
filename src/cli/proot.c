@@ -193,8 +193,32 @@ static int handle_option_0(Tracee *tracee, const Cli *cli, const char *value UNU
 
 static int handle_option_kill_on_exit(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
 {
-	tracee->killall_on_exit = true;
-	return 0;
+        tracee->killall_on_exit = true;
+        return 0;
+}
+
+static int handle_option_l(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
+{
+        (void) initialize_extension(tracee, link2symlink_callback, NULL);
+        return 0;
+}
+
+static int handle_option_L(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
+{
+        (void) initialize_extension(tracee, fix_symlink_size_callback, NULL);
+        return 0;
+}
+
+static int handle_option_H(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
+{
+        (void) initialize_extension(tracee, hidden_files_callback, NULL);
+        return 0;
+}
+
+static int handle_option_p(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
+{
+        (void) initialize_extension(tracee, port_switch_callback, NULL);
+        return 0;
 }
 
 static int handle_option_v(Tracee *tracee, const Cli *cli UNUSED, const char *value)
@@ -276,18 +300,6 @@ static int handle_option_S(Tracee *tracee, const Cli *cli, const char *value)
 		return status;
 
 	new_bindings(tracee, recommended_su_bindings, value);
-
-	return 0;
-}
-
-static int handle_option_link2symlink(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
-{
-	int status;
-
-	/* Initialize the link2symlink extension.  */
-	status = initialize_extension(tracee, link2symlink_callback, NULL);
-	if (status < 0)
-		note(tracee, WARNING, INTERNAL, "link2symlink not initialized");
 
 	return 0;
 }

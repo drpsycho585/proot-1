@@ -166,6 +166,11 @@ int handle_seccomp_event(Tracee* tracee) {
 		restart_syscall_after_seccomp(tracee);
 		break;
 
+	//case PR_statfs:
+		///*so far this is only used to check on files in the /dev directory and that will always fail with perm/access errors*/
+		//set_result_after_seccomp(tracee, 0);
+		//break;
+
 	case PR_utimes:
 	{
 		/* int utimes(const char *filename, const struct timeval times[2]);

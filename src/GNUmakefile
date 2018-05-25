@@ -55,7 +55,10 @@ OBJECTS += \
 	extension/extension.o	\
 	extension/kompat/kompat.o \
 	extension/fake_id0/fake_id0.o \
+	extension/hidden_files/hidden_files.o \
+	extension/port_switch/port_switch.o \
 	extension/link2symlink/link2symlink.o \
+	extension/fix_symlink_size/fix_symlink_size.o \
 	loader/loader-wrapped.o
 
 define define_from_arch.h
