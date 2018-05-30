@@ -1504,6 +1504,148 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 } while (0)
 
 /**
+ * Emulate setuid(2) and setgid(2).
+ */
+#define SETXXID(id) do {                         \
+    id ## _t id = peek_reg(tracee, CURRENT, SYSARG_1);     \
+    bool allowed;                           \
+                                    \
+    /* "EPERM: The user is not privileged (does not have the    \
+     * CAP_SETUID capability) and uid does not match the real UID   \
+     * or saved set-user-ID of the calling process." -- man     \
+     * setuid */                            \
+    allowed = (config->euid == 0 /* TODO: || HAS_CAP(SETUID) */ \
+        || id == config->r ## id                \
+        || id == config->e ## id                \
+        || id == config->s ## id);              \
+    if (!allowed)                            \
+        return -EPERM;                      \
+                                    \
+    /* "If the effective UID of the caller is root, the real UID    \
+     * and saved set-user-ID are also set." -- man setuid     \
+     * The original PRoot checked config->e ## id here. Only euid should \
+     *  be checked in order to emulate "real" functionality. \
+     */ \
+    if (config->euid == 0) {                 \
+        config->r ## id = id;                   \
+        config->s ## id = id;                   \
+    }                               \
+                                    \
+    /* "whenever the effective user ID is changed, fsuid will also  \
+     * be changed to the new value of the effective user ID."  --   \
+     * man setfsuid */                      \
+    config->e ## id  = id;                      \
+    config->fs ## id = id;                      \
+                                    \
+    poke_reg(tracee, SYSARG_RESULT, 0);             \
+    return 0;                           \
+} while (0)
+
+/**
+ * Emulate setreuid(2) and setregid(2).
+ */
+#define SETREXXID(id) do {                       \
+    id ## _t r ## id = peek_reg(tracee, CURRENT, SYSARG_1);    \
+    id ## _t e ## id = peek_reg(tracee, CURRENT, SYSARG_2);    \
+    bool allowed;                           \
+                                    \
+    /* "Unprivileged processes may only set the effective user ID   \
+     * to the real user ID, the effective user ID, or the saved \
+     * set-user-ID.                         \
+     *                              \
+     * Unprivileged users may only set the real user ID to the  \
+     * real user ID or the effective user ID."          \
+     *
+     * "EPERM: The calling process is not privileged (does not  \
+     * have the CAP_SETUID) and a change other than:        \
+     * 1. swapping the effective user ID with the real user ID, \
+     *    or;                           \
+     * 2. setting one to the value of the other, or ;       \
+     * 3. setting the effective user ID to the value of the saved   \
+     *    set-user-ID                       \
+     * was specified." -- man setreuid              \
+     *                              \
+     * Is it possible to "ruid <- euid" and "euid <- suid" at the   \
+     * same time?  */                       \
+    allowed = (config->euid == 0 /* TODO: || HAS_CAP(SETUID) */ \
+        || (UNCHANGED_ID(e ## id) && UNCHANGED_ID(r ## id)) \
+        || (r ## id == config->e ## id && (e ## id == config->r ## id || UNCHANGED_ID(e ## id))) \
+        || (e ## id == config->r ## id && (r ## id == config->e ## id || UNCHANGED_ID(r ## id))) \
+        || (e ## id == config->s ## id && UNCHANGED_ID(r ## id))); \
+    if (!allowed)                          \
+        return -EPERM;                      \
+                                    \
+    /* "Supplying a value of -1 for either the real or effective    \
+     * user ID forces the system to leave that ID unchanged.    \
+     * [...]  If the real user ID is set or the effective user ID   \
+     * is set to a value not equal to the previous real user ID,    \
+     * the saved set-user-ID will be set to the new effective user  \
+     * ID." -- man setreuid */                  \
+    if (!UNSET_ID(e ## id)) {                   \
+        if (e ## id != config->r ## id)             \
+            config->s ## id = e ## id;          \
+                                    \
+        config->e ## id  = e ## id;             \
+        config->fs ## id = e ## id;             \
+    }                               \
+                                    \
+    /* Since it changes the current ruid value, this has to be  \
+     * done after euid handling. */                 \
+    if (!UNSET_ID(r ## id)) {                   \
+        if (!UNSET_ID(e ## id))                 \
+            config->s ## id = e ## id;          \
+        config->r ## id = r ## id;              \
+    }                               \
+                                    \
+    poke_reg(tracee, SYSARG_RESULT, 0);             \
+    return 0;                           \
+} while (0)
+
+/**
+ * Emulate setresuid(2) and setresgid(2).
+ */
+#define SETRESXXID(type) do {                        \
+    type ## id_t r ## type ## id = peek_reg(tracee, CURRENT, SYSARG_1);    \
+    type ## id_t e ## type ## id = peek_reg(tracee, CURRENT, SYSARG_2);    \
+    type ## id_t s ## type ## id = peek_reg(tracee, CURRENT, SYSARG_3);    \
+    bool allowed;                           \
+                                    \
+    /* "Unprivileged user processes may change the real UID,    \
+     * effective UID, and saved set-user-ID, each to one of: the    \
+     * current real UID, the current effective UID or the current   \
+     * saved set-user-ID.                       \
+     *                              \
+     * Privileged processes (on Linux, those having the CAP_SETUID  \
+     * capability) may set the real UID, effective UID, and saved   \
+     * set-user-ID to arbitrary values." -- man setresuid */    \
+    allowed = (config->euid == 0 /* || HAS_CAP(SETUID) */       \
+        || ((UNSET_ID(r ## type ## id) || EQUALS_ANY_ID(r ## type ## id, type)) \
+         && (UNSET_ID(e ## type ## id) || EQUALS_ANY_ID(e ## type ## id, type)) \
+         && (UNSET_ID(s ## type ## id) || EQUALS_ANY_ID(s ## type ## id, type)))); \
+    if (!allowed)                            \
+        return -EPERM;                      \
+                                    \
+    /* "If one of the arguments equals -1, the corresponding value  \
+     * is not changed." -- man setresuid */             \
+    if (!UNSET_ID(r ## type ## id))                 \
+        config->r ## type ## id = r ## type ## id;      \
+                                    \
+    if (!UNSET_ID(e ## type ## id)) {               \
+        /* "the file system UID is always set to the same   \
+         * value as the (possibly new) effective UID." -- man   \
+         * setresuid */                     \
+        config->e ## type ## id  = e ## type ## id;     \
+        config->fs ## type ## id = e ## type ## id;     \
+    }                               \
+                                    \
+    if (!UNSET_ID(s ## type ## id))                 \
+        config->s ## type ## id = s ## type ## id;      \
+                                    \
+    poke_reg(tracee, SYSARG_RESULT, 0);             \
+    return 0;                           \
+} while (0)
+
+/**
  * Emulate setfsuid(2) and setfsgid(2).
  */
 #define SETFSXID(type) do {                     \
@@ -1754,6 +1896,10 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
     case PR_chroot: {
         char path[PATH_MAX];
+        char path_translated[PATH_MAX];
+        char path_translated_absolute[PATH_MAX];
+        char root_translated[PATH_MAX];
+        char root_translated_absolute[PATH_MAX];
         word_t input;
         int status;
 
@@ -1770,9 +1916,18 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
         status = read_path(tracee, path, input);
         if (status < 0)
             return status;
+        status = translate_path(tracee, path_translated, AT_FDCWD, path, false);
+        if (status < 0)
+            return status;
+        realpath(path_translated, path_translated_absolute);
 
-        /* Only "new rootfs == current rootfs" is supported yet.  */
-        status = compare_paths(get_root(tracee), path);
+        status = translate_path(tracee, root_translated, AT_FDCWD, get_root(tracee), false);
+        if (status < 0)
+            return status;
+        realpath(root_translated, root_translated_absolute);
+
+        /* Only can chroot to a subdir of the current root */
+	status = compare_paths(root_translated_absolute, path_translated_absolute);
         if (status != PATHS_ARE_EQUAL)
             return 0;
 
@@ -1826,288 +1981,33 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 static int handle_sigsys(Tracee *tracee, Config *config)
 {
     word_t sysnum;
-    word_t result;
 
     sysnum = get_sysnum(tracee, CURRENT);
     switch (sysnum) {
 
     case PR_setuid:
     case PR_setuid32:
-        SETXID(uid);
+        SETXXID(uid);
 
     case PR_setgid:
     case PR_setgid32:
-        SETXID(gid);
+        SETXXID(gid);
 
     case PR_setreuid:
     case PR_setreuid32:
-        SETREXID(uid);
+        SETREXXID(uid);
 
     case PR_setregid:
     case PR_setregid32:
-        SETREXID(gid);
+        SETREXXID(gid);
 
     case PR_setresuid:
     case PR_setresuid32:
-        SETRESXID(u);
+        SETRESXXID(u);
 
     case PR_setresgid:
     case PR_setresgid32:
-        SETRESXID(g);
-
-    case PR_setfsuid:
-    case PR_setfsuid32:
-        SETFSXID(u);
-
-    case PR_setfsgid:
-    case PR_setfsgid32:
-        SETFSXID(g);
-
-    case PR_getuid:
-    case PR_getuid32:
-        poke_reg(tracee, SYSARG_RESULT, config->ruid);
-        return 0;
-
-    case PR_getgid:
-    case PR_getgid32:
-        poke_reg(tracee, SYSARG_RESULT, config->rgid);
-        return 0;
-
-    case PR_geteuid:
-    case PR_geteuid32:
-        poke_reg(tracee, SYSARG_RESULT, config->euid);
-        return 0;
-
-    case PR_getegid:
-    case PR_getegid32:
-        poke_reg(tracee, SYSARG_RESULT, config->egid);
-        return 0;
-
-    case PR_getresuid:
-    case PR_getresuid32:
-        POKE_MEM_ID(SYSARG_1, ruid);
-        POKE_MEM_ID(SYSARG_2, euid);
-        POKE_MEM_ID(SYSARG_3, suid);
-        return 0;
-
-    case PR_getresgid:
-    case PR_getresgid32:
-        POKE_MEM_ID(SYSARG_1, rgid);
-        POKE_MEM_ID(SYSARG_2, egid);
-        POKE_MEM_ID(SYSARG_3, sgid);
-        return 0;
-
-    case PR_umask:
-        poke_reg(tracee, SYSARG_RESULT, config->umask);
-        config->umask = (mode_t) peek_reg(tracee, MODIFIED, SYSARG_1); 
-        return 0;
-        
-    case PR_setdomainname:
-    case PR_sethostname:
-    case PR_setgroups:
-    case PR_setgroups32:
-    case PR_mknod:
-    case PR_mknodat:
-    case PR_capset:
-    case PR_setxattr:
-    case PR_lsetxattr:
-    case PR_fsetxattr:
-    case PR_chmod:
-    case PR_chown:
-    case PR_fchmod:
-    case PR_fchown:
-    case PR_lchown:
-    case PR_chown32:
-    case PR_fchown32:
-    case PR_lchown32:
-    case PR_fchmodat:
-    case PR_fchownat: {
-        word_t result;
-
-        result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-
-        /** If the call has been set to PR_void, it "succeeded" in
-         *  altering a meta file correctly.
-         */ 
-        if(get_sysnum(tracee, CURRENT) == PR_void && (int) result != 0) 
-            poke_reg(tracee, SYSARG_RESULT, 0);
-        
-        /* Override only permission errors.  */
-        if ((int) result != -EPERM && (int) result != -EACCES)
-            return 0;
-
-        /* Force success if the tracee was supposed to have
-         * the capability.  */
-        if (config->euid == 0) /* TODO: || HAS_CAP(...) */
-            poke_reg(tracee, SYSARG_RESULT, 0);
-
-        return 0;
-    }
-
-    case PR_fstatat64:
-    case PR_newfstatat:
-    case PR_stat64:
-    case PR_lstat64:
-    case PR_fstat64:
-    case PR_stat:
-    case PR_lstat:
-    case PR_fstat: {
-        int status;
-        word_t address;
-        Reg sysarg;
-        uid_t uid;
-        gid_t gid;
-        mode_t mode;
-        struct stat my_stat;
-        char path[PATH_MAX];
-        char meta_path[PATH_MAX];
-
-        /* Override only if it succeed.  */
-        result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-        if (result != 0) 
-            return 0;
-
-        /* Get the pathname of the file to be 'stat'. */
-        if(sysnum == PR_fstat || sysnum == PR_fstat64) {
-            status = get_fd_path(tracee, path, SYSARG_1, MODIFIED);
-
-            if(strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0)
-                path[strlen(path) - strlen(" (deleted)")] = '\0';
-
-            /* Get out if the fd describes a pipe. */
-            if(strncmp(path, "pipe", 4) == 0) 
-                return 0;
-        }
-
-        else if(sysnum == PR_fstatat64 || sysnum == PR_newfstatat) 
-            status = read_sysarg_path(tracee, path, SYSARG_2, MODIFIED);
-        else 
-            status = read_sysarg_path(tracee, path, SYSARG_1, MODIFIED);
-
-        if(status < 0) 
-            return status;
-        if(status == 1) 
-            return 0;
-
-        /* Get the address of the 'stat' structure.  */
-        if (sysnum == PR_fstatat64 || sysnum == PR_newfstatat)
-            sysarg = SYSARG_3;
-        else
-            sysarg = SYSARG_2;
-
-        /** If the meta file exists, read the data from it and replace it the
-         *  relevant data in the stat structure.
-         */
-        
-        status = get_meta_path(path, meta_path);
-        if(status == 0) {
-            status = path_exists(meta_path);
-            if(status == 0) {
-                read_meta_file(meta_path, &mode, &uid, &gid, config);
-
-                /** Get the file type and sticky/set-id bits of the original 
-                 *  file and add them to the mode found in the meta_file.
-                 */
-                read_data(tracee, &my_stat, peek_reg(tracee, ORIGINAL, sysarg), sizeof(struct stat));
-                my_stat.st_mode = (mode | ((my_stat.st_mode & S_IFMT) | (my_stat.st_mode & 07000)));
-                my_stat.st_uid = uid;
-                my_stat.st_gid = gid;
-                write_data(tracee, peek_reg(tracee, ORIGINAL, sysarg), &my_stat, sizeof(struct stat));
-                return 0;
-            }
-        }
-
-        address = peek_reg(tracee, ORIGINAL, sysarg);
-
-        /* Sanity checks.  */
-        assert(__builtin_types_compatible_p(uid_t, uint32_t));
-        assert(__builtin_types_compatible_p(gid_t, uint32_t));
-
-        /* Get the uid & gid values from the 'stat' structure.  */
-        uid = peek_uint32(tracee, address + offsetof_stat_uid(tracee));
-        if (errno != 0) 
-            uid = 0; /* Not fatal.  */
-        
-        gid = peek_uint32(tracee, address + offsetof_stat_gid(tracee));
-        if (errno != 0) 
-            gid = 0; /* Not fatal.  */
-        
-        /* Override only if the file is owned by the current user.
-         * Errors are not fatal here.  */
-        if (uid == getuid()) 
-            poke_uint32(tracee, address + offsetof_stat_uid(tracee), config->suid);
-        
-        if (gid == getgid()) 
-            poke_uint32(tracee, address + offsetof_stat_gid(tracee), config->sgid);
-        
-        return 0;
-    }
-
-    case PR_chroot: {
-        char path[PATH_MAX];
-        word_t input;
-        int status;
-
-        if (config->euid != 0) /* TODO: && !HAS_CAP(SYS_CHROOT) */
-            return 0;
-
-        /* Override only permission errors.  */
-        result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-        if ((int) result != -EPERM)
-            return 0;
-
-        input = peek_reg(tracee, MODIFIED, SYSARG_1);
-
-        status = read_path(tracee, path, input);
-        if (status < 0)
-            return status;
-
-        /* Only "new rootfs == current rootfs" is supported yet.  */
-        status = compare_paths(get_root(tracee), path);
-        if (status != PATHS_ARE_EQUAL)
-            return 0;
-
-        /* Force success.  */
-        poke_reg(tracee, SYSARG_RESULT, 0);
-        return 0;
-    }
-
-    /** Check to see if a meta was created for a file that no longer exists.
-     *  If so, delete it.
-     */
-    case PR_open:
-    case PR_openat:
-    case PR_creat: {
-        int status;
-        Reg sysarg;
-        char path[PATH_MAX];
-        char meta_path[PATH_MAX];
-
-        if(sysnum == PR_open || sysnum == PR_creat)
-            sysarg = SYSARG_1;
-        else
-            sysarg = SYSARG_2;
-
-        status = read_sysarg_path(tracee, path, sysarg, MODIFIED);
-        if(status < 0) 
-            return status;
-        if(status == 1) 
-            return 0;
-
-        /* If the file exists, it doesn't matter if a metafile exists. */
-        if(path_exists(path) == 0) 
-            return 0; 
-
-        status = get_meta_path(path, meta_path);
-        if(status < 0) 
-            return status;
-
-        /* If the metafile exists and the original file does not, delete it. */
-        if(path_exists(meta_path) == 0) 
-            status = unlink(meta_path);
-
-        return 0;
-    }    
+        SETRESXXID(g);
 
     default:
         return 0;
@@ -2326,10 +2226,19 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 
         switch (sysnum) {
 
-        case PR_setgid:
-        case PR_setgid32:
-        case PR_setuid:
-        case PR_setuid32:
+            case PR_setuid:
+            case PR_setuid32:
+            case PR_setgid:
+            case PR_setgid32:
+            case PR_setreuid:
+            case PR_setreuid32:
+            case PR_setregid:
+            case PR_setregid32:
+            case PR_setresuid:
+            case PR_setresuid32:
+            case PR_setresgid:
+            case PR_setresgid32:
+
             status = handle_sigsys(tracee, config);
             if (status < 0)
                 return status;
