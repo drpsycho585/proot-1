@@ -31,6 +31,9 @@
 
 /* List of possible events.  */
 typedef enum {
+	/* A SIGSYS has occurred and we are going to see if any of the extensions wants to handle it for us*/
+	SIGSYS_OCC,
+
 	/* A guest path passed as an argument of the current syscall
 	 * is about to be translated: "(char *) data1" is the base for
 	 * "(char *) data2" -- the guest path -- if this latter is

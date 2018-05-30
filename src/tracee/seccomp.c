@@ -3,6 +3,7 @@
 #include <unistd.h>    /* getpgid, */
 #include <sys/vfs.h>   /* statfs64 */
 
+#include "extension/extension.h"
 #include "cli/note.h"
 #include "syscall/chain.h"
 #include "syscall/syscall.h"
@@ -65,6 +66,7 @@ int handle_seccomp_event(Tracee* tracee) {
 
 	Sysnum sysnum;
 	int ret;
+	int status;
 
 	/* Reset status so next SIGTRAP | 0x80 is
 	 * recognized as syscall entry.  */
@@ -83,12 +85,29 @@ int handle_seccomp_event(Tracee* tracee) {
 
 	sysnum = get_sysnum(tracee, CURRENT);
 
+	status = notify_extensions(tracee, SIGSYS_OCC, 0, 0);
+	if (status < 0) {
+		VERBOSE(tracee, 4, "SIGSYS errored out when being handled by an extension");
+		set_result_after_seccomp(tracee, status);
+		return 0;
+	}
+	if (status == 1) {
+		VERBOSE(tracee, 4, "SIGSYS fully handled by an extension");
+		set_result_after_seccomp(tracee, 0);
+		return 0;
+	}
+
 	switch (sysnum) {
 	case PR_accept:
 		prepare_restart_syscall_after_seccomp(tracee);
 		set_sysnum(tracee, PR_accept4);
 		poke_reg(tracee, SYSARG_4, 0);
 		restart_syscall_after_seccomp(tracee);
+		break;
+
+	case PR_setgroups:
+	case PR_setgroups32:
+		set_result_after_seccomp(tracee, 0);
 		break;
 
 	case PR_getpgrp:
@@ -250,12 +269,6 @@ int handle_seccomp_event(Tracee* tracee) {
 		restart_syscall_after_seccomp(tracee);
 		break;
 	}
-
-	case PR_setgid32:
-		prepare_restart_syscall_after_seccomp(tracee);
-		set_sysnum(tracee, PR_setgid);
-		restart_syscall_after_seccomp(tracee);
-		break;
 
 	case PR_set_robust_list:
 	default:
