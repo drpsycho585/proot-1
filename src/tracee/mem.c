@@ -44,11 +44,11 @@
 #include "tracee/reg.h"
 #include "syscall/sysnum.h"
 
+// See loader/assembly.S
+#if defined(__aarch64__)
 extern const ssize_t offset_to_pokedata_workaround;
 void launcher_pokedata_workaround();
 
-// See loader/assembly.S
-#if defined(__aarch64__)
 __asm(
 	".globl launcher_pokedata_workaround\n"
 	"launcher_pokedata_workaround:\n"
