@@ -95,9 +95,12 @@ static inline void store_word(void *address, word_t value)
 static int ptrace_pokedata_or_via_stub(Tracee *tracee, word_t addr, word_t word)
 {
 	int status;
-#if 0
 	status = ptrace(PTRACE_POKEDATA, tracee->pid, addr, word);
-#else
+#if defined(__aarch64__)
+	//normally this just works, if so, get out
+	if (status == 0)
+		return status;
+	//but for some android devices/kernels pokedata is broken
 	status = 0;
 	struct user_regs_struct orig_regs = tracee->_regs[CURRENT];
 	bool restore_original_regs = tracee->restore_original_regs;
@@ -173,7 +176,7 @@ static int ptrace_pokedata_or_via_stub(Tracee *tracee, word_t addr, word_t word)
 		status = -1;
 		errno = EFAULT;
 	}
-#endif
+#endif /* defined(__aarch64__) */
 	return status;
 }
 
