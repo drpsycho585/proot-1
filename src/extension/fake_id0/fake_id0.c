@@ -49,7 +49,6 @@
 #include "path/binding.h"
 #include "path/path.h"
 #include "arch.h"
-#include "cli/note.h"
 
 #define META_TAG        ".proot-meta-file."
 #define IGNORE_SYSARG   (Reg)2000
@@ -1728,7 +1727,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
             path[strlen(path) - strlen(" (deleted)")] = '\0';
 
         tracee->fd_path = talloc_strdup(tracee, path);
-        VERBOSE(tracee, 1, "PR_readlinkat got path: %s", path);
         register_chained_syscall(tracee, sysnum, peek_reg(tracee, ORIGINAL, SYSARG_1), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0, 0);
 	return 0;
     }

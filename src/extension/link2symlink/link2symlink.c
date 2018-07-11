@@ -16,7 +16,6 @@
 #include "path/path.h"
 #include "arch.h"
 #include "attribute.h"
-#include "cli/note.h"
 
 #define PREFIX ".proot.l2s."
 #define DELETED_SUFFIX " (deleted)"
@@ -649,8 +648,6 @@ int link2symlink_callback(Extension *extension, ExtensionEvent event,
         //in some cases drill down to real file
         case PR_open:
         case PR_openat:
-        case PR_stat:
-        case PR_stat64:
         case PR_lstat:
         case PR_lstat64:
         case PR_lchown:

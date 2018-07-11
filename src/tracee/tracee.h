@@ -278,7 +278,7 @@ typedef struct tracee {
 	const char *host_ldso_paths;
 	const char *guest_ldso_paths;
 
-	/*for help with file descriptors that might have CLOEXEC flag set*/
+	/*storage of path associated with a file descriptor, used for fstat and fstat64*/
 	char *fd_path;
 
 	/* For diagnostic purpose.  */
