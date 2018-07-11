@@ -16,6 +16,7 @@
 #include "path/path.h"
 #include "arch.h"
 #include "attribute.h"
+#include "cli/note.h"
 
 #define PREFIX ".proot.l2s."
 #define DELETED_SUFFIX " (deleted)"
@@ -341,6 +342,9 @@ static int handle_sysexit_end(Tracee *tracee)
 
     sysnum = get_sysnum(tracee, ORIGINAL);
 
+    if (((sysnum == PR_fstat) || (sysnum == PR_fstat64)) && (get_sysnum(tracee, CURRENT) == PR_readlinkat))
+        return 0;
+
     switch (sysnum) {
 
     case PR_fstatat64:                 //int fstatat(int dirfd, const char *pathname, struct stat *buf, int flags);
@@ -369,11 +373,10 @@ static int handle_sysexit_end(Tracee *tracee)
             return 0;
 
         if (sysnum == PR_fstat64 || sysnum == PR_fstat) {
-            status = readlink_proc_pid_fd(tracee->pid, peek_reg(tracee, MODIFIED, SYSARG_1), original);
-            if (status < 0)
+            strcpy(original, tracee->fd_path);
+            /* Get out if the fd describes a pipe. */
+            if(strncmp(original, "pipe", 4) == 0) 
                 return 0;
-            if (strcmp(original + strlen(original) - strlen(DELETED_SUFFIX), DELETED_SUFFIX) == 0)
-                original[strlen(original) - strlen(DELETED_SUFFIX)] = '\0'; 
         } else {
             if (sysnum == PR_fstatat64 || sysnum == PR_newfstatat)
                 sysarg_path = SYSARG_2;
@@ -634,6 +637,7 @@ int link2symlink_callback(Extension *extension, ExtensionEvent event,
         return 0;
     }
 
+    case SYSCALL_CHAINED_EXIT:
     case SYSCALL_EXIT_END: {
         return handle_sysexit_end(TRACEE(extension));
     }
@@ -645,6 +649,8 @@ int link2symlink_callback(Extension *extension, ExtensionEvent event,
         //in some cases drill down to real file
         case PR_open:
         case PR_openat:
+        case PR_stat:
+        case PR_stat64:
         case PR_lstat:
         case PR_lstat64:
         case PR_lchown:

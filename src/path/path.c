@@ -287,10 +287,15 @@ void chop_finality(char *path)
 int readlink_proc_pid_fd(pid_t pid, int fd, char path[PATH_MAX])
 {
 	char link[32]; /* 32 > sizeof("/proc//cwd") + sizeof(#ULONG_MAX) */
+	char linkdir[32]; /* 32 > sizeof("/proc//cwd") + sizeof(#ULONG_MAX) */
 	int status;
+	Tracee *tracee = NULL;
+        DIR *dp;
+        struct dirent *ep;
 
 	/* Format the path to the "virtual" link. */
 	status = snprintf(link, sizeof(link), "/proc/%d/fd/%d",	pid, fd);
+	VERBOSE(tracee, 2, "readlink_proc_pid_fd snprintf status: %d", status);
 	if (status < 0)
 		return -EBADF;
 	if ((size_t) status >= sizeof(link))
@@ -298,6 +303,39 @@ int readlink_proc_pid_fd(pid_t pid, int fd, char path[PATH_MAX])
 
 	/* Read the value of this "virtual" link. */
 	status = readlink(link, path, PATH_MAX);
+	VERBOSE(tracee, 2, "readlink_proc_pid_fd readlink status: %d, errno: %d", status, errno);
+	/*
+	if (status < 0) {
+            VERBOSE(tracee, 2, "readlink_proc_pid_fd looking for: %s", link);
+	    status = snprintf(linkdir, sizeof(linkdir), "/proc/%d/fd", pid);
+            dp = opendir(linkdir);
+            if (dp != NULL)
+            {
+                VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", linkdir);
+                while (ep = readdir (dp))
+                    VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", ep->d_name);
+                (void) closedir (dp);
+            }
+	    status = snprintf(linkdir, sizeof(linkdir), "/proc/%d", pid);
+            dp = opendir(linkdir);
+            if (dp != NULL)
+            {
+                VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", linkdir);
+                while (ep = readdir (dp))
+                    VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", ep->d_name);
+                (void) closedir (dp);
+            }
+	    status = snprintf(linkdir, sizeof(linkdir), "/proc/", pid);
+            dp = opendir(linkdir);
+            if (dp != NULL)
+            {
+                VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", linkdir);
+                while (ep = readdir (dp))
+                    VERBOSE(tracee, 2, "readlink_proc_pid_fd found: %s", ep->d_name);
+                (void) closedir (dp);
+            }
+	}
+	*/
 	if (status < 0)
 		return -EBADF;
 	if (status >= PATH_MAX)
