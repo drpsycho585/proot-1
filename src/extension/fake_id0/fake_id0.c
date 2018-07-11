@@ -40,6 +40,7 @@
 #include "syscall/syscall.h"
 #include "syscall/sysnum.h"
 #include "syscall/seccomp.h"
+#include "syscall/chain.h"
 #include "execve/execve.h"
 #include "tracee/tracee.h"
 #include "tracee/abi.h"
@@ -1076,6 +1077,28 @@ static int handle_symlink(Tracee *tracee, Reg oldpath_sysarg,
     return 0;
 }
 
+/** Convert fstat and fstat64 to readlink
+ *  this is so we can get the path associated with /proc/pid#/fd/fd#
+ */
+static int handle_fstat_enter(Tracee *tracee, Reg fd_sysarg) {
+    char path[PATH_MAX];
+    char link_path[64];
+    word_t link_address;
+    word_t path_address;
+
+    set_sysnum(tracee, PR_readlinkat);
+    snprintf(link_path, sizeof(link_path), "/proc/%d/fd/%d", tracee->pid, (int)peek_reg(tracee, CURRENT, fd_sysarg));
+    link_address = alloc_mem(tracee, sizeof(link_path));
+    path_address = alloc_mem(tracee, sizeof(path));
+    write_data(tracee, link_address, link_path, sizeof(link_path));
+    write_data(tracee, path_address, path, sizeof(path));
+    poke_reg(tracee, SYSARG_1, AT_FDCWD);    
+    poke_reg(tracee, SYSARG_2, link_address);    
+    poke_reg(tracee, SYSARG_3, path_address);    
+    poke_reg(tracee, SYSARG_4, sizeof(path));    
+    return 0;
+}
+
 /**
  * Restore the @node->mode for the given @node->path.
  *
@@ -1297,6 +1320,11 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
     /* int symlinkat(const char *target, int newdirfd, const char *linkpath); */
     case PR_symlinkat:
         return handle_symlink(tracee, SYSARG_1, SYSARG_2, SYSARG_3, config);
+
+    /* int fstat(int fd, struct stat *buf); */
+    case PR_fstat:
+    case PR_fstat64:
+        return handle_fstat_enter(tracee, SYSARG_1);
 
     case PR_setuid:
     case PR_setuid32:
@@ -1680,6 +1708,29 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
     word_t result;
 
     sysnum = get_sysnum(tracee, ORIGINAL);
+
+    if (((sysnum == PR_fstat) || (sysnum == PR_fstat64)) && (get_sysnum(tracee, CURRENT) == PR_readlinkat)) {
+        int status;
+	char path[PATH_MAX];
+        result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
+        poke_reg(tracee, SYSARG_RESULT, 0);
+        if ((int)result <= 0)
+            return result;
+
+        status = read_sysarg_path(tracee, path, SYSARG_3, MODIFIED);
+        if(status < 0) 
+            return status;
+
+        path[result] = '\0';
+
+        if(strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0)
+            path[strlen(path) - strlen(" (deleted)")] = '\0';
+
+        tracee->fd_path = talloc_strdup(tracee, path);
+        register_chained_syscall(tracee, sysnum, peek_reg(tracee, ORIGINAL, SYSARG_1), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0, 0);
+	return 0;
+    }
+
     switch (sysnum) {
 
     case PR_setuid:
@@ -1773,8 +1824,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
     case PR_lchown32:
     case PR_fchmodat:
     case PR_fchownat: {
-        word_t result;
-
         result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
 
         /** If the call has been set to PR_void, it "succeeded" in
@@ -1803,7 +1852,7 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
     case PR_stat:
     case PR_lstat:
     case PR_fstat: {
-        int status;
+        int status = 0;
         word_t address;
         Reg sysarg;
         uid_t uid;
@@ -1820,17 +1869,11 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
         /* Get the pathname of the file to be 'stat'. */
         if(sysnum == PR_fstat || sysnum == PR_fstat64) {
-            status = get_fd_path(tracee, path, SYSARG_1, MODIFIED);
-
-            if(strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0)
-                path[strlen(path) - strlen(" (deleted)")] = '\0';
-
+            strcpy(path, tracee->fd_path);
             /* Get out if the fd describes a pipe. */
             if(strncmp(path, "pipe", 4) == 0) 
                 return 0;
-        }
-
-        else if(sysnum == PR_fstatat64 || sysnum == PR_newfstatat) 
+	} else if(sysnum == PR_fstatat64 || sysnum == PR_newfstatat) 
             status = read_sysarg_path(tracee, path, SYSARG_2, MODIFIED);
         else 
             status = read_sysarg_path(tracee, path, SYSARG_1, MODIFIED);
@@ -2211,6 +2254,7 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
         return handle_sysenter_end(tracee, config);
     }
 
+    case SYSCALL_CHAINED_EXIT:
     case SYSCALL_EXIT_END: {
         Tracee *tracee = TRACEE(extension);
         Config *config = talloc_get_type_abort(extension->config, Config);
