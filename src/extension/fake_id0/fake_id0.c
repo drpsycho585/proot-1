@@ -1816,8 +1816,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
         
     case PR_setdomainname:
     case PR_sethostname:
-    case PR_setgroups:
-    case PR_setgroups32:
     case PR_mknod:
     case PR_mknodat:
     case PR_capset:
