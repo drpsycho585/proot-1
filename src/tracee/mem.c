@@ -180,10 +180,12 @@ static int ptrace_pokedata_or_via_stub(Tracee *tracee, word_t addr, word_t word)
 	return status;
 }
 
+#if defined(__aarch64__)
 void mem_prepare_after_execve(Tracee *tracee)
 {
 	tracee->pokedata_workaround_stub_addr = peek_reg(tracee, CURRENT, INSTR_POINTER) + offset_to_pokedata_workaround;
 }
+#endif /* defined(__aarch64__) */
 
 /**
  * Copy @size bytes from the buffer @src_tracer to the address
