@@ -744,7 +744,7 @@ static int handle_chmod(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
         return status;
     // If the file exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_void);
+        set_sysnum(tracee, PR_getuid);
         return 0;
     }
 
@@ -792,7 +792,7 @@ static int handle_chown(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
         return status;
     // If the path exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_void);
+        set_sysnum(tracee, PR_getuid);
         return 0;
     }
 
