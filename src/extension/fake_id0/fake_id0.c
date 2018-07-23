@@ -744,7 +744,8 @@ static int handle_chmod(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
         return status;
     // If the file exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_getuid);
+        //set_sysnum(tracee, PR_getuid);
+        set_sysnum(tracee, PR_void);
         return 0;
     }
 
@@ -765,7 +766,8 @@ static int handle_chmod(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
         return -EPERM;
 
     call_mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
-    set_sysnum(tracee, PR_getuid);
+    //set_sysnum(tracee, PR_getuid);
+    set_sysnum(tracee, PR_void);
     return write_meta_file(meta_path, call_mode, owner, group, 0, config);
 }
 
@@ -792,7 +794,8 @@ static int handle_chown(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
         return status;
     // If the path exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_getuid);
+        //set_sysnum(tracee, PR_getuid);
+        set_sysnum(tracee, PR_void);
         return 0;
     }
 
@@ -834,7 +837,8 @@ static int handle_chown(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
     else if(config->euid != read_owner) 
         return -EPERM;
 
-    set_sysnum(tracee, PR_getuid);
+    //set_sysnum(tracee, PR_getuid);
+    set_sysnum(tracee, PR_void);
 
     return 0;
 }
