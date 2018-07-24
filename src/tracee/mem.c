@@ -41,6 +41,23 @@
 #include "build.h"           /* HAVE_PROCESS_VM,  */
 #include "cli/note.h"
 
+#include "tracee/reg.h"
+#include "syscall/sysnum.h"
+
+// See loader/assembly.S
+#if defined(__aarch64__)
+extern const ssize_t offset_to_pokedata_workaround;
+void launcher_pokedata_workaround();
+
+__asm(
+	".globl launcher_pokedata_workaround\n"
+	"launcher_pokedata_workaround:\n"
+	"str x1, [x2]\n"
+	// https://stackoverflow.com/a/16087057
+	".word 0xf7f0a000\n"
+);
+#endif /* defined(__aarch64__) */
+
 /**
  * Load the word at the given @address, potentially *not* aligned.
  */
@@ -75,12 +92,107 @@ static inline void store_word(void *address, word_t value)
 #endif
 }
 
+static int ptrace_pokedata_or_via_stub(Tracee *tracee, word_t addr, word_t word)
+{
+	int status;
+	status = ptrace(PTRACE_POKEDATA, tracee->pid, addr, word);
+#if defined(__aarch64__)
+	//normally this just works, if so, get out
+	if (status == 0)
+		return status;
+	//but for some android devices/kernels pokedata is broken
+	status = 0;
+	struct user_regs_struct orig_regs = tracee->_regs[CURRENT];
+	bool restore_original_regs = tracee->restore_original_regs;
+	sigset_t orig_sigset;
+	sigset_t modified_sigset;
+
+	// Block signals
+	ptrace(PTRACE_GETSIGMASK, tracee->pid, sizeof(sigset_t), &orig_sigset);
+	sigfillset(&modified_sigset);
+	sigdelset(&modified_sigset, SIGILL);
+	sigdelset(&modified_sigset, SIGTRAP);
+	sigdelset(&modified_sigset, SIGBUS);
+	sigdelset(&modified_sigset, SIGSEGV);
+	sigdelset(&modified_sigset, SIGSYS);
+	int sigmask_result = ptrace(PTRACE_SETSIGMASK, tracee->pid, sizeof(sigset_t), &modified_sigset);
+
+	// Set registers so memory will be written
+	word_t pokedata_workaround_stub_addr = tracee->pokedata_workaround_stub_addr;
+	if (!pokedata_workaround_stub_addr) pokedata_workaround_stub_addr = (word_t)&launcher_pokedata_workaround;
+	poke_reg(tracee, INSTR_POINTER, pokedata_workaround_stub_addr);
+	poke_reg(tracee, SYSARG_2, word);
+	poke_reg(tracee, SYSARG_3, addr);
+	set_sysnum(tracee, PR_void);
+	tracee->_regs_were_changed = true;
+	tracee->restore_original_regs = false;
+	push_specific_regs(tracee, true);
+	print_current_regs(tracee, 5, "pokedata workaround" );
+
+	// Continue tracee, retry if SIGSYS or SIGSTOP occurs
+	int wstatus = 0;
+	bool redeliver_sigstop = false;
+	do
+	{
+		ptrace(PTRACE_CONT, tracee->pid, 0, 0);
+		waitpid(tracee->pid, &wstatus, 0);
+		// For SIGSTOP, we kill tracee after handling POKEDATA
+		if (WIFSTOPPED(wstatus) && WSTOPSIG(wstatus) == SIGSTOP)
+		{
+			redeliver_sigstop = true;
+		}
+		// SIGSYS is silently skipped (In case of seccomp disallowing void syscall)
+	} while (WIFSTOPPED(wstatus) && (WSTOPSIG(wstatus) == SIGSYS || WSTOPSIG(wstatus) == SIGSTOP));
+
+	// Redeliver SIGSTOP if occured
+	if (redeliver_sigstop)
+	{
+		kill(tracee->pid, SIGSTOP);
+	}
+
+	// Check status
+	if (tracee->verbose >= 3)
+	{
+		note(tracee, INFO, INTERNAL, "pokedata wstatus=%x stub=%lx addr=%lx word=%lx sigmask_result=%d",
+				wstatus, pokedata_workaround_stub_addr, addr, word, sigmask_result);
+	}
+	bool success = (WIFSTOPPED(wstatus) && WSTOPSIG(wstatus) == SIGILL);
+
+	// Restore tracee state to one before intervention
+	ptrace(PTRACE_SETSIGMASK, tracee->pid, sizeof(sigset_t), &orig_sigset);
+	tracee->_regs[CURRENT] = orig_regs;
+	tracee->_regs_were_changed = true;
+	tracee->pokedata_workaround_cancelled_syscall = true;
+	tracee->restore_original_regs = restore_original_regs;
+
+	if (success)
+	{
+		status = 0;
+	}
+	else
+	{
+		// Report failure
+		note(tracee, ERROR, INTERNAL, "POKEDATA workaround stub got signal %d", WSTOPSIG(wstatus));
+		status = -1;
+		errno = EFAULT;
+	}
+#endif /* defined(__aarch64__) */
+	return status;
+}
+
+#if defined(__aarch64__)
+void mem_prepare_after_execve(Tracee *tracee)
+{
+	tracee->pokedata_workaround_stub_addr = peek_reg(tracee, CURRENT, INSTR_POINTER) + offset_to_pokedata_workaround;
+}
+#endif /* defined(__aarch64__) */
+
 /**
  * Copy @size bytes from the buffer @src_tracer to the address
  * @dest_tracee within the memory space of the @tracee process. It
  * returns -errno if an error occured, otherwise 0.
  */
-int write_data(const Tracee *tracee, word_t dest_tracee, const void *src_tracer, word_t size)
+int write_data(Tracee *tracee, word_t dest_tracee, const void *src_tracer, word_t size)
 {
 	word_t *src  = (word_t *)src_tracer;
 	word_t *dest = (word_t *)dest_tracee;
@@ -118,7 +230,7 @@ int write_data(const Tracee *tracee, word_t dest_tracee, const void *src_tracer,
 
 	/* Copy one word by one word, except for the last one. */
 	for (i = 0; i < nb_full_words; i++) {
-		status = ptrace(PTRACE_POKEDATA, tracee->pid, dest + i, load_word(&src[i]));
+		status = ptrace_pokedata_or_via_stub(tracee, (word_t)(dest + i), load_word(&src[i]));
 		if (status < 0) {
 			note(tracee, WARNING, SYSTEM, "ptrace(POKEDATA)");
 			return -EFAULT;
@@ -146,7 +258,7 @@ int write_data(const Tracee *tracee, word_t dest_tracee, const void *src_tracer,
 	for (j = 0; j < nb_trailing_bytes; j++)
 		last_dest_word[j] = last_src_word[j];
 
-	status = ptrace(PTRACE_POKEDATA, tracee->pid, dest + i, word);
+	status = ptrace_pokedata_or_via_stub(tracee, (word_t)(dest + i), word);
 	if (status < 0) {
 		note(tracee, WARNING, SYSTEM, "ptrace(POKEDATA)");
 		return -EFAULT;
@@ -161,7 +273,7 @@ int write_data(const Tracee *tracee, word_t dest_tracee, const void *src_tracer,
  * process.  This function returns -errno if an error occured,
  * otherwise 0.
  */
-int writev_data(const Tracee *tracee, word_t dest_tracee, const struct iovec *src_tracer, int src_tracer_count)
+int writev_data(Tracee *tracee, word_t dest_tracee, const struct iovec *src_tracer, int src_tracer_count)
 {
 	size_t size;
 	int status;
@@ -542,7 +654,7 @@ word_t alloc_mem(Tracee *tracee, ssize_t size)
  * space.  This function returns -errno if an error occured, otherwise
  * 0.
  */
-int clear_mem(const Tracee *tracee, word_t address, size_t size)
+int clear_mem(Tracee *tracee, word_t address, size_t size)
 {
 	int status;
 	void *zeros;

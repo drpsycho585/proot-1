@@ -744,7 +744,7 @@ static int handle_chmod(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
         return status;
     // If the file exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_void);
+        set_sysnum(tracee, PR_getuid);
         return 0;
     }
 
@@ -765,7 +765,7 @@ static int handle_chmod(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
         return -EPERM;
 
     call_mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
-    set_sysnum(tracee, PR_void);
+    set_sysnum(tracee, PR_getuid);
     return write_meta_file(meta_path, call_mode, owner, group, 0, config);
 }
 
@@ -792,7 +792,7 @@ static int handle_chown(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
         return status;
     // If the path exists outside the guestfs, drop the syscall.
     else if(status == 1) {
-        set_sysnum(tracee, PR_void);
+        set_sysnum(tracee, PR_getuid);
         return 0;
     }
 
@@ -834,7 +834,7 @@ static int handle_chown(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
     else if(config->euid != read_owner) 
         return -EPERM;
 
-    set_sysnum(tracee, PR_void);
+    set_sysnum(tracee, PR_getuid);
 
     return 0;
 }
@@ -1837,6 +1837,8 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
         /** If the call has been set to PR_void, it "succeeded" in
          *  altering a meta file correctly.
          */ 
+        if(get_sysnum(tracee, CURRENT) == PR_getuid && (int) result != 0) 
+            poke_reg(tracee, SYSARG_RESULT, 0);
         if(get_sysnum(tracee, CURRENT) == PR_void && (int) result != 0) 
             poke_reg(tracee, SYSARG_RESULT, 0);
         
