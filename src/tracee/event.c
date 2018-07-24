@@ -551,13 +551,7 @@ int handle_tracee_event(Tracee *tracee, int tracee_status)
 						seccomp_after_ptrace_enter ? "new" : "old");
 			}
 
-			if (was_sysenter) {
-				tracee->skip_next_seccomp_signal = (
-					seccomp_after_ptrace_enter &&
-					get_sysnum(tracee, CURRENT) == PR_void);
-			} else {
-				tracee->skip_next_seccomp_signal = false
-			}
+			tracee->skip_next_seccomp_signal = false;
 
 			/* If kernel triggered seccomp event after we handled
 			 * syscall enter, skip this event and continue as it didn't happen */
