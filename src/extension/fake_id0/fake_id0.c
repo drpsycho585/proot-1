@@ -1767,6 +1767,7 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
         if ((strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0) || (strncmp(path, "pipe", 4) == 0)) {
             register_chained_syscall(tracee, sysnum, peek_reg(tracee, ORIGINAL, SYSARG_1), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0, 0);
         } else {
+            write_data(tracee, peek_reg(tracee, MODIFIED, SYSARG_3), path, sizeof(path));
 #           if defined(__x86_64__)
                 register_chained_syscall(tracee, PR_newfstatat, AT_FDCWD, peek_reg(tracee, MODIFIED, SYSARG_3), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0);
 #           else

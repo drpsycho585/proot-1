@@ -282,9 +282,6 @@ typedef struct tracee {
 	const char *host_ldso_paths;
 	const char *guest_ldso_paths;
 
-	/*storage of path associated with a file descriptor, used for fstat and fstat64*/
-	char *fd_path;
-
 	/* For diagnostic purpose.  */
 	const char *tool_name;
 
