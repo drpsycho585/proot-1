@@ -341,6 +341,9 @@ static int handle_sysexit_end(Tracee *tracee)
 
     sysnum = get_sysnum(tracee, ORIGINAL);
 
+    if ((get_sysnum(tracee, CURRENT) == PR_fstat) || (get_sysnum(tracee, CURRENT) == PR_fstat64))
+        return 0;
+
     if (((sysnum == PR_fstat) || (sysnum == PR_fstat64)) && (get_sysnum(tracee, CURRENT) == PR_readlinkat))
         return 0;
 
@@ -372,10 +375,11 @@ static int handle_sysexit_end(Tracee *tracee)
             return 0;
 
         if (sysnum == PR_fstat64 || sysnum == PR_fstat) {
-            strcpy(original, tracee->fd_path);
-            /* Get out if the fd describes a pipe. */
-            if(strncmp(original, "pipe", 4) == 0) 
-                return 0;
+            size = read_string(tracee, original, peek_reg(tracee, CURRENT, SYSARG_2), PATH_MAX);
+            if (size < 0)
+                return size;
+            if (size >= PATH_MAX)
+                return -ENAMETOOLONG;
         } else {
             if (sysnum == PR_fstatat64 || sysnum == PR_newfstatat)
                 sysarg_path = SYSARG_2;

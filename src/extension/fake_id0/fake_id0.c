@@ -1091,7 +1091,6 @@ static int handle_fstat_enter(Tracee *tracee, Reg fd_sysarg) {
     link_address = alloc_mem(tracee, sizeof(link_path));
     path_address = alloc_mem(tracee, sizeof(path));
     write_data(tracee, link_address, link_path, sizeof(link_path));
-    write_data(tracee, path_address, path, sizeof(path));
     poke_reg(tracee, SYSARG_1, AT_FDCWD);    
     poke_reg(tracee, SYSARG_2, link_address);    
     poke_reg(tracee, SYSARG_3, path_address);    
@@ -1711,9 +1710,49 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
     sysnum = get_sysnum(tracee, ORIGINAL);
 
+    if ((get_sysnum(tracee, CURRENT) == PR_fstat) || (get_sysnum(tracee, CURRENT) == PR_fstat64)) {
+        word_t address;
+        Reg sysarg;
+        uid_t uid;
+        gid_t gid;
+        
+        /* Override only if it succeed.  */
+        result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
+        if (result != 0)
+            return 0;
+        
+        /* Get the address of the 'stat' structure.  */
+        sysarg = SYSARG_2;
+        
+        address = peek_reg(tracee, ORIGINAL, sysarg);
+        
+        /* Sanity checks.  */
+        assert(__builtin_types_compatible_p(uid_t, uint32_t));
+        assert(__builtin_types_compatible_p(gid_t, uint32_t));
+        
+        /* Get the uid & gid values from the 'stat' structure.  */
+        uid = peek_uint32(tracee, address + offsetof_stat_uid(tracee));
+        if (errno != 0)
+            uid = 0; /* Not fatal.  */
+        
+        gid = peek_uint32(tracee, address + offsetof_stat_gid(tracee));
+        if (errno != 0)
+            gid = 0; /* Not fatal.  */
+        
+        /* Override only if the file is owned by the current user.
+        *          * Errors are not fatal here.  */
+        if (uid == getuid())
+            poke_uint32(tracee, address + offsetof_stat_uid(tracee), config->suid);
+        
+        if (gid == getgid())
+            poke_uint32(tracee, address + offsetof_stat_gid(tracee), config->sgid);
+        
+        return 0;
+    }
+
     if (((sysnum == PR_fstat) || (sysnum == PR_fstat64)) && (get_sysnum(tracee, CURRENT) == PR_readlinkat)) {
         int status;
-	char path[PATH_MAX];
+        char path[PATH_MAX];
         result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
         poke_reg(tracee, SYSARG_RESULT, 0);
         if ((int)result <= 0)
@@ -1725,12 +1764,17 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
         path[result] = '\0';
 
-        if(strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0)
-            path[strlen(path) - strlen(" (deleted)")] = '\0';
+        if ((strcmp(path + strlen(path) - strlen(" (deleted)"), " (deleted)") == 0) || (strncmp(path, "pipe", 4) == 0)) {
+            register_chained_syscall(tracee, sysnum, peek_reg(tracee, ORIGINAL, SYSARG_1), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0, 0);
+        } else {
+#           if defined(__x86_64__)
+                register_chained_syscall(tracee, PR_newfstatat, AT_FDCWD, peek_reg(tracee, MODIFIED, SYSARG_3), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0);
+#           else
+                register_chained_syscall(tracee, PR_fstatat64, AT_FDCWD, peek_reg(tracee, MODIFIED, SYSARG_3), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0);
+#           endif
+        }
 
-        tracee->fd_path = talloc_strdup(tracee, path);
-        register_chained_syscall(tracee, sysnum, peek_reg(tracee, ORIGINAL, SYSARG_1), peek_reg(tracee, ORIGINAL, SYSARG_2), 0, 0, 0, 0);
-	return 0;
+        return 0;
     }
 
     switch (sysnum) {
@@ -1810,7 +1854,7 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
     case PR_setgroups32:
     case PR_getgroups:
     case PR_getgroups32:
-	/*TODO: need to really emulate*/
+        /*TODO: need to really emulate*/
         poke_reg(tracee, SYSARG_RESULT, 0);
         return 0;
         
@@ -1879,11 +1923,8 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
         /* Get the pathname of the file to be 'stat'. */
         if(sysnum == PR_fstat || sysnum == PR_fstat64) {
-            strcpy(path, tracee->fd_path);
-            /* Get out if the fd describes a pipe. */
-            if(strncmp(path, "pipe", 4) == 0) 
-                return 0;
-	} else if(sysnum == PR_fstatat64 || sysnum == PR_newfstatat) 
+            status = read_sysarg_path(tracee, path, SYSARG_2, CURRENT);
+        } else if(sysnum == PR_fstatat64 || sysnum == PR_newfstatat) 
             status = read_sysarg_path(tracee, path, SYSARG_2, MODIFIED);
         else 
             status = read_sysarg_path(tracee, path, SYSARG_1, MODIFIED);
@@ -1980,7 +2021,7 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
         realpath(root_translated, root_translated_absolute);
 
         /* Only can chroot to a subdir of the current root */
-	status = compare_paths(root_translated_absolute, path_translated_absolute);
+        status = compare_paths(root_translated_absolute, path_translated_absolute);
         if (status != PATHS_ARE_EQUAL)
             return 0;
 
