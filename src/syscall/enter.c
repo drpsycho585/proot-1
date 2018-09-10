@@ -223,6 +223,8 @@ int translate_syscall_enter(Tracee *tracee)
 		size    = peek_reg(tracee, CURRENT, SYSARG_3);
 
 		status = translate_socketcall_enter(tracee, &address, size);
+		if (status == -EFAULT)
+			return 0;
 		if (status <= 0)
 			break;
 
