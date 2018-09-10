@@ -223,10 +223,12 @@ int translate_syscall_enter(Tracee *tracee)
 		size    = peek_reg(tracee, CURRENT, SYSARG_3);
 
 		status = translate_socketcall_enter(tracee, &address, size);
-		if (status == -EFAULT)
-			return 0;
-		if (status <= 0)
+		if (status <= 0) {
+			if (status == -EFAULT) {
+				status = 0;
+			}
 			break;
+		}
 
 		poke_reg(tracee, SYSARG_2, address);
 		poke_reg(tracee, SYSARG_3, sizeof(struct sockaddr_un));
@@ -264,9 +266,15 @@ int translate_syscall_enter(Tracee *tracee)
 	case PR_getpeername:{
 		int size;
 
-		/* Remember: PEEK_WORD puts -errno in status and breaks if an
-		 * error occured.  */
-		size = (int) PEEK_WORD(peek_reg(tracee, ORIGINAL, SYSARG_3), special ? -EINVAL : 0);
+		size = peek_word(tracee, peek_reg(tracee, ORIGINAL, SYSARG_3));
+		if (errno != 0) {
+			status = special ?: -EINVAL;
+			if (errno == EFAULT) {
+				errno = 0;
+				status = 0;
+			}
+			break;				\
+		}
 
 		/* The "size" argument is both used as an input parameter
 		 * (max. size) and as an output parameter (actual size).  The
@@ -333,8 +341,12 @@ int translate_syscall_enter(Tracee *tracee)
 
 		sock_addr_saved = sock_addr;
 		status = translate_socketcall_enter(tracee, &sock_addr, size);
-		if (status <= 0)
+		if (status <= 0) {
+			if (status == -EFAULT) {
+				status = 0;
+			}
 			break;
+		}
 
 		/* These parameters are used/restored at the exit stage.  */
 		poke_reg(tracee, SYSARG_5, sock_addr_saved);
