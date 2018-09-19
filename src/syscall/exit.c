@@ -137,7 +137,7 @@ void translate_syscall_exit(Tracee *tracee)
 		max_size  = peek_reg(tracee, MODIFIED, SYSARG_6);
 
 		status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
-		if (status <= 0) {
+		if (status < 0) {
 			if (status == -EFAULT) {
 				status = 0;
 			}
@@ -218,7 +218,7 @@ void translate_syscall_exit(Tracee *tracee)
 		max_size  = peek_reg(tracee, MODIFIED, SYSARG_6);
 
 		status = translate_socketcall_exit(tracee, sock_addr, size_addr, max_size);
-		if (status <= 0) {
+		if (status < 0) {
 			if (status == -EFAULT) {
 				status = 0;
 			}
