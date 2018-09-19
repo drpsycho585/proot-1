@@ -152,7 +152,6 @@ char * get_name(char path[PATH_MAX])
 {
 	char *name;
 	int offset;
-	char trim_path[PATH_MAX];
 
 	offset = strlen(path) - 1;
 	if ((path[offset] == '/') && (offset > 0)) 
