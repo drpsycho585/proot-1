@@ -343,6 +343,11 @@ static int handle_seccomp_event_common(Tracee *tracee)
 		break;
 	}
 
+	//required for when an extention changes the sysnum to PR_void and that gets picked up by the filtering
+	case PR_void:
+		set_result_after_seccomp(tracee, 0);
+		break;
+
 	case PR_set_robust_list:
 	default:
 		/* Set errno to -ENOSYS */
