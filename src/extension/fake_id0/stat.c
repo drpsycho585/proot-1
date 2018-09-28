@@ -96,16 +96,16 @@ int handle_stat_exit_end(Tracee *tracee, Config *config, word_t sysnum) {
 	else 
 		status = read_sysarg_path(tracee, path, SYSARG_1, MODIFIED);
 
-	if(status < 0) 
-		return status;
-	if(status == 1) 
-		return 0;
-
 	/* Get the address of the 'stat' structure.  */
 	if (sysnum == PR_fstatat64 || sysnum == PR_newfstatat)
 		sysarg = SYSARG_3;
 	else
 		sysarg = SYSARG_2;
+
+	if(status < 0) 
+		return status;
+	if(status == 1) 
+		goto fallback;
 
 	/** If the meta file exists, read the data from it and replace it the
 	 *  relevant data in the stat structure.
@@ -128,6 +128,8 @@ int handle_stat_exit_end(Tracee *tracee, Config *config, word_t sysnum) {
 			return 0;
 		}
 	}
+
+fallback:
 
 	address = peek_reg(tracee, ORIGINAL, sysarg);
 

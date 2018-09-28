@@ -5,6 +5,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 
+#include "syscall/syscall.h"
+#include "syscall/sysnum.h"
 #include "tracee/tracee.h"
 #include "tracee/reg.h"
 #include "tracee/mem.h"
@@ -355,4 +357,81 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	fprintf(fp, "%d\n%d\n%d\n", dtoo(mode), owner, group);
 	fclose(fp);
 	return 0;
+}
+
+void modify_pid_status_files(Tracee *tracee, Config *config, char translated_path[PATH_MAX]) {
+	char new_path[PATH_MAX];
+	char new_translated_path[PATH_MAX];
+	char dir_path[PATH_MAX];
+	char dir_path_translated[PATH_MAX];
+	char *str, *s;
+	struct stat statBuf;
+	FILE *fp_in, *fp_out;
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t read;
+
+	/* Make sure this is a system call and file of interest */
+	word_t sysnum = get_sysnum(tracee, ORIGINAL);
+	if ((sysnum != PR_open) && (sysnum != PR_openat))
+		return;
+
+	if (strncmp(translated_path, "/proc", 5) != 0)
+		return;
+
+	if (strlen(translated_path) < 7)
+		return;
+
+	if (strcmp(translated_path + strlen(translated_path) - 7, "/status") != 0)
+		return;
+
+	strcpy(new_path, "/support");
+	strcat(new_path, translated_path);
+
+	/* Create directory and copy file to new location */
+	get_dir_path(new_path, dir_path);
+	s = dir_path;
+	while ((str = strtok(s, "/")) != NULL) {
+		if (str != s) {
+			str[-1] = '/';
+		}
+		if (stat (dir_path, &statBuf) == -1) {
+			translate_path(tracee, dir_path_translated, AT_FDCWD, dir_path, true);
+			mkdir (dir_path_translated, 0700);
+		} else {
+			return;
+		}
+		s = NULL;
+	}
+
+	translate_path(tracee, new_translated_path, AT_FDCWD, new_path, true);
+
+	fp_in = fopen(translated_path, "r");
+	if (fp_in == NULL) {
+		return;
+	}
+
+	fp_out = fopen(new_translated_path, "w");
+	if (fp_out == NULL) {
+		return;
+	}
+
+	while ((read = getline(&line, &len, fp_in)) != -1) {
+		if (strncmp(line, "Uid:", 4) == 0) {
+			fprintf(fp_out, "Uid:   %d   %d   %d   %d\n", config->euid, config->euid, config->euid, config->euid);
+		} else if (strncmp(line, "Gid:", 4) == 0) {
+			fprintf(fp_out, "Gid:   %d   %d   %d   %d\n", config->egid, config->egid, config->egid, config->egid);
+		} else {
+			fprintf(fp_out, "%s", line);
+		}
+	}
+
+	fclose(fp_in);
+	fclose(fp_out);
+	if (line)
+		free(line);
+
+	/* Change path to point at the new file */
+	strcpy(translated_path, new_translated_path);
+	return;
 }

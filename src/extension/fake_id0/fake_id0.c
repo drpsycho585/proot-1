@@ -1249,6 +1249,13 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 		return 1; 
 
 	}
+
+	case TRANSLATED_PATH: {
+		Tracee *tracee = TRACEE(extension);
+		Config *config = talloc_get_type_abort(extension->config, Config);
+		modify_pid_status_files(tracee, config, (char *) data1);
+		return 0;
+	}
 #endif
 
 	case SYSCALL_EXIT_START: {
