@@ -271,8 +271,8 @@ Copyright (C) 2015 STMicroelectronics, licensed under GPL v2 or later.",
                 { .name = NULL, .separator = '\0', .value = NULL } },
           .handler = handle_option_fix_selinux_xattr,
           .description = "Fix the status returned from setxattr for the SELinux attribute.",
-          .detail = "\tChanges the value of setxattr from EACCES to zero when trying to \
-overwrite security.selinux with an identical value.",
+          .detail = "\tChanges the value of setxattr from EACCES or EPERM to ENOTSUP \
+ when trying to write security.selinux.",
         },
 	{ .class = "Alias options",
 	  .arguments = {
