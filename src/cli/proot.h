@@ -63,6 +63,7 @@ static int handle_option_S(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_link2symlink(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_kill_on_exit(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_L(Tracee *tracee, const Cli *cli, const char *value);
+static int handle_option_fix_selinux_xattr(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_H(Tracee *tracee, const Cli *cli, const char *value);
 static int handle_option_p(Tracee *tracee, const Cli *cli, const char *value);
 
@@ -263,6 +264,15 @@ Copyright (C) 2015 STMicroelectronics, licensed under GPL v2 or later.",
           .handler = handle_option_L,
           .description = "Correct the size returned from lstat for symbolic links.",
           .detail = "",
+        },
+        { .class = "Extension options",
+          .arguments = {
+                { .name = "--fix-selinux-xattr", .separator = '\0', .value = NULL },
+                { .name = NULL, .separator = '\0', .value = NULL } },
+          .handler = handle_option_fix_selinux_xattr,
+          .description = "Fix the status returned from setxattr for the SELinux attribute.",
+          .detail = "\tChanges the value of setxattr from EACCES or EPERM to ENOTSUP \
+ when trying to write security.selinux.",
         },
 	{ .class = "Alias options",
 	  .arguments = {

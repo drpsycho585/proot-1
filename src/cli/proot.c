@@ -298,6 +298,12 @@ static int handle_option_L(Tracee *tracee, const Cli *cli UNUSED, const char *va
         return 0;
 }
 
+static int handle_option_fix_selinux_xattr(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
+{
+        (void) initialize_extension(tracee, fix_selinux_xattr_callback, NULL);
+        return 0;
+}
+
 static int handle_option_H(Tracee *tracee, const Cli *cli UNUSED, const char *value UNUSED)
 {
         (void) initialize_extension(tracee, hidden_files_callback, NULL);
