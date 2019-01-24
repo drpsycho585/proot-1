@@ -20,7 +20,6 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	int status, perms, access_mode;
 	char orig_path[PATH_MAX];
 	char rel_path[PATH_MAX];
-	char meta_path[PATH_MAX];
 	word_t flags;
 	mode_t mode;
 
@@ -30,17 +29,13 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	if(status == 1) 
 		return 0;
 
-	status = get_meta_path(orig_path, meta_path);
-	if(status < 0) 
-		return status;
- 
 	if(flags_sysarg != IGNORE_SYSARG) 
 		flags = peek_reg(tracee, ORIGINAL, flags_sysarg);
 	else  
 		flags = O_CREAT;
 
-	/* If the metafile doesn't exist and we aren't creating a new file, get out. */
-	if(path_exists(meta_path) != 0 && (flags & O_CREAT) != O_CREAT) 
+	/* If the file doesn't exist and we aren't creating a new file, get out. */
+	if(path_exists(orig_path) != 0 && (flags & O_CREAT) != O_CREAT) 
 		return 0;
 
 	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
@@ -65,23 +60,23 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 		if(path_exists(orig_path) == 0) 
 			goto check;
 
-		status = check_dir_perms(tracee, 'w', meta_path, rel_path, config);
+		status = check_dir_perms(tracee, 'w', orig_path, rel_path, config);
 		if(status < 0) 
 			return status;
 
 		mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 		poke_reg(tracee, mode_sysarg, (mode|0700));
-		status = write_meta_file(meta_path, mode, config->euid, config->egid, 1, config);
+		status = write_meta_file(orig_path, mode, config->euid, config->egid, 1, config);
 		return status;
 	}
 
 check:
 
-	status = check_dir_perms(tracee, 'r', meta_path, rel_path, config);
+	status = check_dir_perms(tracee, 'r', orig_path, rel_path, config);
 	if(status < 0) 
 		return status;
 	
-	perms = get_permissions(meta_path, config, 0); 
+	perms = get_permissions(orig_path, config, 0); 
 	access_mode = (flags & O_ACCMODE);
 
 	/* 0 = RDONLY, 1 = WRONLY, 2 = RDWR */

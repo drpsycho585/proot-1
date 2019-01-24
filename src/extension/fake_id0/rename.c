@@ -58,13 +58,8 @@ int handle_rename_enter_end(Tracee *tracee, Reg oldfd_sysarg, Reg oldpath_sysarg
 	if(path_exists(meta_path) != 0)
 		return 0;
 
-	read_meta_file(meta_path, &mode, &uid, &gid, config);
+	read_meta_file(oldpath, &mode, &uid, &gid, config);
 	unlink(meta_path);
 	
-	strcpy(meta_path, "");
-	status = get_meta_path(newpath, meta_path);
-	if(status < 0)
-		return status;
-
-	return write_meta_file(meta_path, mode, uid, gid, 0, config); 
+	return write_meta_file(newpath, mode, uid, gid, 0, config); 
 }

@@ -14,7 +14,6 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	mode_t mode;
 	char orig_path[PATH_MAX];
 	char rel_path[PATH_MAX];
-	char meta_path[PATH_MAX];
 
 	status  = read_sysarg_path(tracee, orig_path, path_sysarg, CURRENT);
 	if(status < 0)
@@ -26,10 +25,6 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	if(path_exists(orig_path) == 0)
 		return 0;
 
-	status = get_meta_path(orig_path, meta_path);
-	if(status < 0)
-		return status;
-
 	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
 	if(status < 0) 
 		return status;
@@ -40,5 +35,5 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	
 	mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 	poke_reg(tracee, mode_sysarg, (mode|0700));
-	return write_meta_file(meta_path, mode, config->euid, config->egid, 1, config);
+	return write_meta_file(orig_path, mode, config->euid, config->egid, 1, config);
 }

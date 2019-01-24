@@ -21,7 +21,6 @@ int handle_utimensat_enter_end(Tracee *tracee, Reg dirfd_sysarg,
 	uid_t owner;
 	gid_t ignore_g;
 	char path[PATH_MAX];
-	char meta_path[PATH_MAX];
 
 	// Only care about calls that attempt to change something.
 	status = peek_reg(tracee, ORIGINAL, times_sysarg);
@@ -45,17 +44,13 @@ int handle_utimensat_enter_end(Tracee *tracee, Reg dirfd_sysarg,
 			return status;
 	}
 
-	status = get_meta_path(path, meta_path);
-	if(status < 0)
-		return status;
-
 	// Current user must be owner of file or root.
-	read_meta_file(meta_path, &ignore_m, &owner, &ignore_g, config);
+	read_meta_file(path, &ignore_m, &owner, &ignore_g, config);
 	if(config->euid != owner && config->euid != 0) 
 		return -EACCES;
 
 	// If write permissions are on the file, continue.
-	perms = get_permissions(meta_path, config, 0);
+	perms = get_permissions(path, config, 0);
 	if((perms & 2) != 2)
 		return -EACCES;
 

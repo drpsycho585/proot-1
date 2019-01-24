@@ -1,0 +1,8 @@
+Package: proot
+Architecture: arm
+Installed-Size: 172
+Maintainer: Fredrik Fornwall @fornwall
+Version: 5.1.106-5
+Description: Emulate chroot, bind mount and binfmt_misc for non-root users
+Homepage: http://proot.me/
+Depends: libtalloc

@@ -16,7 +16,7 @@ OBJDUMP  ?= $(CROSS_COMPILE)objdump
 
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -I. -I$(VPATH)
 CFLAGS   += -Wall -Wextra -O2
-LDFLAGS  += -ltalloc -Wl,-z,noexecstack
+LDFLAGS  += -pthread -lleveldb -ltalloc -Wl,-z,noexecstack
 
 OBJECTS += \
 	cli/cli.o		\
@@ -54,6 +54,8 @@ OBJECTS += \
 	ptrace/wait.o		\
 	extension/extension.o	\
 	extension/kompat/kompat.o \
+	extension/fake_id0/hashmap.o \
+	extension/fake_id0/diskhash.o \
 	extension/fake_id0/chown.o \
 	extension/fake_id0/chroot.o \
 	extension/fake_id0/getsockopt.o \

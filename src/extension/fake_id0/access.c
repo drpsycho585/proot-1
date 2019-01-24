@@ -14,7 +14,6 @@ int handle_access_enter_end(Tracee *tracee, Reg path_sysarg,
 	int status, mode, perms, mask;
 	char path[PATH_MAX];
 	char rel_path[PATH_MAX];
-	char meta_path[PATH_MAX];
 
 	status = read_sysarg_path(tracee, path, path_sysarg, CURRENT);
 	if(status < 0)
@@ -35,10 +34,6 @@ int handle_access_enter_end(Tracee *tracee, Reg path_sysarg,
 	if(mode & F_OK) 
 		return 0;
 
-	status = get_meta_path(path, meta_path);
-	if(status < 0)
-		return status;
-
 	mask = 0;
 	if((mode & R_OK) == R_OK)
 		mask += 4;
@@ -47,7 +42,7 @@ int handle_access_enter_end(Tracee *tracee, Reg path_sysarg,
 	if((mode & X_OK) == X_OK)
 		mask += 1; 
 
-	perms = get_permissions(meta_path, config, 1);
+	perms = get_permissions(path, config, 1);
 	if((perms & mask) != mask) 
 		return -EACCES;
 
