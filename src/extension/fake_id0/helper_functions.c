@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 #include <leveldb/c.h>
@@ -17,16 +16,12 @@
 #include "path/path.h"
 #include "extension/fake_id0/config.h"
 #include "extension/fake_id0/helper_functions.h"
-#include "extension/fake_id0/hashmap.h"
-#include "extension/fake_id0/diskhash.h"
 
 #define META_TAG ".proot-meta-file."
 
 #define OWNER_PERMS	 0
 #define GROUP_PERMS	 1
 #define OTHER_PERMS	 2
-
-static map_t my_hash;
 
 leveldb_t *db;
 leveldb_options_t *options;
@@ -39,22 +34,6 @@ typedef struct diskhash_struct_s
     uid_t owner;
     gid_t group;
 } diskhash_struct_t;
-
-typedef struct hash_struct_s
-{
-    char key_string[9];
-    mode_t mode;
-    uid_t owner;
-    gid_t group;
-} hash_struct_t;
-
-typedef struct print_struct_s
-{
-    char key_string[PATH_MAX];
-    mode_t mode;
-    uid_t owner;
-    gid_t group;
-} print_struct_t;
 
 /** Converts a decimal number to its octal representation. Used to convert
  *  system returned modes to a more common form for humans.
@@ -335,7 +314,6 @@ int get_meta_path(char orig_path[PATH_MAX], char meta_path[PATH_MAX])
 
 void init_meta_hash() {
 	char *err = NULL;
-	my_hash = hashmap_new();
 
 	options = leveldb_options_create();
 	leveldb_options_set_create_if_missing(options, 1);
@@ -343,7 +321,7 @@ void init_meta_hash() {
 
 	if (err != NULL) {
 		fprintf(stderr, "Open fail.\n");
-		return(1);
+		return;
 	}
 
 	/* reset error var */
@@ -362,43 +340,29 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 {
 	FILE *fp;
 	int lcl_mode;
-	hash_struct_t* value;
-	int error;
 	int status;
 	char meta_path[PATH_MAX];
 	struct stat statBuf;
-	char inode[32];
 	size_t read_len;
 	diskhash_struct_t* hash_read_value;
 	char* err = NULL;
+	ino_t addr;
 
 	status = stat(path, &statBuf);
-	sprintf(inode, "%x", statBuf.st_ino);
-	//printf("read: %x\n", statBuf.st_ino);
 
-	if (status == 0) {
-		hash_read_value = leveldb_get(db, roptions, inode, strlen(inode)+1, &read_len, &err);
+	addr = statBuf.st_ino;
+	if ((status == 0) && (addr > 0)) {
+		hash_read_value = (diskhash_struct_t *)leveldb_get(db, roptions, (char *)&addr, sizeof(ino_t), &read_len, &err);
 
 		if (err != NULL) {
+			read_len = 0;
 			fprintf(stderr, "Read fail.\n");
-		} else {
-			if (read_len > 0) {
-				//printf("read %s: %d\n", inode, otod(hash_read_value->mode));
-			} else {
-				//printf("read length: %d\n", read_len);
-			}
 		}
 
 		leveldb_free(err); err = NULL;
-	} else {
-		//printf("status: %d\n", status);
 	}
 
-
-        value = malloc(sizeof(hash_struct_t));
-        //error = hashmap_get(my_hash, inode, (void**)(&value));
-
-        if (read_len > 0) {
+        if ((status == 0) && (read_len > 0) && (addr > 0)) {
 		lcl_mode = hash_read_value->mode;
 		*owner = hash_read_value->owner;
 		*group = hash_read_value->group;
@@ -414,29 +378,12 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 		}
 		fscanf(fp, "%d %d %d ", &lcl_mode, owner, group);
 		fclose(fp);
+		unlink(meta_path);
 	}
 	
 	lcl_mode = otod(lcl_mode);
 	*mode = (mode_t)lcl_mode;
 	return 0;
-}
-
-void * print_to_meta_file(void *arguments) {
-	FILE *fp;
-	print_struct_t *args = arguments;
-	char meta_path[PATH_MAX];
-
-	if (get_meta_path(args->key_string, meta_path) < 0)
-		return NULL;
-
-	fp = fopen(meta_path, "w");
-	if(!fp) {
-		return NULL;
-	}
-
-	fprintf(fp, "%d\n%d\n%d\n", args->mode, args->owner, args->group);
-	fclose(fp);
-	return NULL;
 }
 
 /** Writes mode, owner, and group to the meta file specified by path. If 
@@ -447,14 +394,11 @@ void * print_to_meta_file(void *arguments) {
 int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	bool is_creat, Config *config)
 {
-	hash_struct_t* value;
-	print_struct_t* print_value;
-	pthread_t some_thread;
 	struct stat statBuf;
-	char inode[32];
 	int status;
 	diskhash_struct_t* ht_value;
 	char* err = NULL;
+	ino_t addr;
 
 	/** In syscalls that don't have the ability to create a file (chmod v open)
 	 *  for example, the umask isn't used in determining the permissions of the
@@ -463,42 +407,20 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	if(is_creat)
 		mode = (mode & ~(config->umask) & 0777);
 
-	if (stat(path, &statBuf) < 0) {
-		FILE *fp = fopen(path, "r");
-		stat(path, &statBuf);
+	status = stat(path, &statBuf);
+	addr = statBuf.st_ino;
+
+	if ((status == 0) && (addr > 0)) {
+        	ht_value = malloc(sizeof(diskhash_struct_t));
+        	ht_value->mode = dtoo(mode);
+        	ht_value->owner = owner;
+        	ht_value->group = group;
+		leveldb_put(db, woptions, (char *)&addr, sizeof(ino_t), (char *)ht_value, sizeof(diskhash_struct_t), &err);
+		if (err != NULL) {
+			fprintf(stderr, "Write fail.\n");
+		}
+		leveldb_free(err); err = NULL;
 	}
-	sprintf(inode, "%x", statBuf.st_ino);
-
-        ht_value = malloc(sizeof(diskhash_struct_t));
-        ht_value->mode = dtoo(mode);
-        ht_value->owner = owner;
-        ht_value->group = group;
-	//printf("write %s: %d\n", inode, otod(ht_value->mode));
-	leveldb_put(db, woptions, inode, strlen(inode)+1, ht_value, sizeof(diskhash_struct_t), &err);
-	if (err != NULL) {
-		fprintf(stderr, "Write fail.\n");
-	}
-	leveldb_free(err); err = NULL;
-
-        value = malloc(sizeof(hash_struct_t));
-        strcpy(value->key_string, inode);
-        value->mode = dtoo(mode);
-        value->owner = owner;
-        value->group = group;
-        //hashmap_put(my_hash, value->key_string, value);
-
-        print_value = malloc(sizeof(print_struct_t));
-        strcpy(print_value->key_string, path);
-        print_value->mode = dtoo(mode);
-        print_value->owner = owner;
-        print_value->group = group;
-
-	/*
-	if (pthread_create(&some_thread, NULL, &print_to_meta_file, (void *)print_value) != 0) {
-		printf("Uh-oh!\n");
-	}
-	*/
-	print_to_meta_file((void *)print_value);
 
 	return 0;
 }
