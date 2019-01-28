@@ -13,7 +13,6 @@ int handle_exec_enter_end(Tracee *tracee, Reg filename_sysarg, Config *config)
 {
 	int status, perms;
 	char path[PATH_MAX];
-	char meta_path[PATH_MAX];
 	uid_t uid;
 	gid_t gid;
 	mode_t mode;
@@ -24,26 +23,18 @@ int handle_exec_enter_end(Tracee *tracee, Reg filename_sysarg, Config *config)
 	if(status == 1) 
 		return 0;
 
-	status = get_meta_path(path, meta_path);
-	if(status < 0) 
-		return status;
-
-	/* If metafile doesn't exist, get out, but don't error. */
-	if(path_exists(meta_path) != 0)
-		return 0;
-	
 	/* Check perms relative to / since there is no dirfd argument to execve */
-	status = check_dir_perms(tracee, 'r', meta_path, "/", config);
+	status = check_dir_perms(tracee, 'r', path, "/", config);
 	if(status < 0) 
 		return status;
 	
 	/* Check whether the file has execute permission. */
-	perms = get_permissions(meta_path, config, 0);
+	perms = get_permissions(path, config, 0);
 	if((perms & 1) != 1) 
 		return -EACCES;
 
 	/* If the setuid or setgid bits are on, change config accordingly. */
-	read_meta_file(meta_path, &mode, &uid, &gid, config);
+	read_meta_file(path, &mode, &uid, &gid, config);
 	if ((mode & S_ISUID) != 0) {
 		config->ruid = 0;
 		config->euid = 0;

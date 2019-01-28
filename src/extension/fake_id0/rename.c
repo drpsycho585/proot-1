@@ -50,21 +50,9 @@ int handle_rename_enter_end(Tracee *tracee, Reg oldfd_sysarg, Reg oldpath_sysarg
 	if(status < 0)
 		return status;
 
-	// If a meta file exists, "copy" it to the new path.
-	status = get_meta_path(oldpath, meta_path);
-	if(status < 0)
-		return status;
-
-	if(path_exists(meta_path) != 0)
-		return 0;
-
-	read_meta_file(meta_path, &mode, &uid, &gid, config);
-	unlink(meta_path);
+	//only read the meta file, so it can be deleted if an actual file exists
+	//TODO: Remove once there are no more meta files out there
+	read_meta_file(oldpath, &mode, &uid, &gid, config);
 	
-	strcpy(meta_path, "");
-	status = get_meta_path(newpath, meta_path);
-	if(status < 0)
-		return status;
-
-	return write_meta_file(meta_path, mode, uid, gid, 0, config); 
+	return 0;
 }

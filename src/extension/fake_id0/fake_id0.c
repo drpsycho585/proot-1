@@ -1079,6 +1079,10 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 		Config *config;
 		int uid, gid;
 
+#ifdef USERLAND
+		init_meta_hash();
+#endif
+
 		errno = 0;
 		uid = strtol(uid_string, NULL, 10);
 		if (errno != 0)
