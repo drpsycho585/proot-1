@@ -333,6 +333,8 @@ void init_meta_hash(Tracee *tracee) {
 	if (err != NULL) {
 		VERBOSE(tracee, 2, "Failed to open Meta DB.");
 		return;
+	} else {
+		VERBOSE(tracee, 9, "Succeeded to open Meta DB.");
 	}
 
 	/* reset error var */

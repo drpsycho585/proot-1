@@ -350,6 +350,8 @@ static FilteredSysnum filtered_sysnums[] = {
 	FILTERED_SYSNUM_END,
 };
 
+bool meta_initialized;
+
 /**
  * Restore the @node->mode for the given @node->path.
  *
@@ -1074,15 +1076,12 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 {
 	switch (event) {
 	case INITIALIZATION: {
-		Tracee *tracee = TRACEE(extension);
 		const char *uid_string = (const char *) data1;
 		const char *gid_string;
 		Config *config;
 		int uid, gid;
 
-#ifdef USERLAND
-		init_meta_hash(tracee);
-#endif
+		meta_initialized = false;
 
 		errno = 0;
 		uid = strtol(uid_string, NULL, 10);
@@ -1210,6 +1209,13 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 	case SYSCALL_ENTER_END: {
 		Tracee *tracee = TRACEE(extension);
 		Config *config = talloc_get_type_abort(extension->config, Config);
+
+#ifdef USERLAND
+		if (!meta_initialized) {
+			init_meta_hash(tracee);
+			meta_initialized = true;
+		}
+#endif
 
 		return handle_sysenter_end(tracee, config);
 	}
