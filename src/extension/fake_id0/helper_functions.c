@@ -8,6 +8,7 @@
 #include <string.h>
 #include <leveldb/c.h>
 
+#include "cli/note.h"
 #include "syscall/syscall.h"
 #include "syscall/sysnum.h"
 #include "tracee/tracee.h"
@@ -22,6 +23,10 @@
 #define OWNER_PERMS	 0
 #define GROUP_PERMS	 1
 #define OTHER_PERMS	 2
+
+#ifndef DB_PATH
+#define DB_PATH "/support/meta_db"
+#endif
 
 leveldb_t *db;
 leveldb_options_t *options;
@@ -313,14 +318,19 @@ int get_meta_path(char orig_path[PATH_MAX], char meta_path[PATH_MAX])
 }
 
 void init_meta_hash() {
+	char db_path[PATH_MAX];
 	char *err = NULL;
+
+	status = translate_path(tracee, db_path, AT_FDCWD, DB_PATH, false); 
+	if (status < 0)
+		return;
 
 	options = leveldb_options_create();
 	leveldb_options_set_create_if_missing(options, 1);
-	db = leveldb_open(options, "/tmp/testExtract/testdb", &err);
+	db = leveldb_open(options, db_path, &err);
 
 	if (err != NULL) {
-		fprintf(stderr, "Open fail.\n");
+		VERBOSE(tracee, 2, "Failed to open Meta DB.");
 		return;
 	}
 
@@ -356,7 +366,7 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 
 		if (err != NULL) {
 			read_len = 0;
-			fprintf(stderr, "Read fail.\n");
+			VERBOSE(tracee, 2, "Meta DB read failed.");
 		}
 
 		leveldb_free(err); err = NULL;
@@ -417,7 +427,7 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
         	ht_value->group = group;
 		leveldb_put(db, woptions, (char *)&addr, sizeof(ino_t), (char *)ht_value, sizeof(diskhash_struct_t), &err);
 		if (err != NULL) {
-			fprintf(stderr, "Write fail.\n");
+			VERBOSE(tracee, 2, "Meta DB write failed.");
 		}
 		leveldb_free(err); err = NULL;
 	}
