@@ -317,9 +317,10 @@ int get_meta_path(char orig_path[PATH_MAX], char meta_path[PATH_MAX])
 	return 0;
 }
 
-void init_meta_hash() {
+void init_meta_hash(Tracee *tracee) {
 	char db_path[PATH_MAX];
 	char *err = NULL;
+	int status;
 
 	status = translate_path(tracee, db_path, AT_FDCWD, DB_PATH, false); 
 	if (status < 0)
@@ -357,6 +358,7 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 	diskhash_struct_t* hash_read_value;
 	char* err = NULL;
 	ino_t addr;
+	Tracee *tracee = NULL;
 
 	status = stat(path, &statBuf);
 
@@ -409,6 +411,7 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	diskhash_struct_t* ht_value;
 	char* err = NULL;
 	ino_t addr;
+	Tracee *tracee = NULL;
 
 	/** In syscalls that don't have the ability to create a file (chmod v open)
 	 *  for example, the umask isn't used in determining the permissions of the

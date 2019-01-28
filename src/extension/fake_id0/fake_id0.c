@@ -1074,13 +1074,14 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 {
 	switch (event) {
 	case INITIALIZATION: {
+		Tracee *tracee = TRACEE(extension);
 		const char *uid_string = (const char *) data1;
 		const char *gid_string;
 		Config *config;
 		int uid, gid;
 
 #ifdef USERLAND
-		init_meta_hash();
+		init_meta_hash(tracee);
 #endif
 
 		errno = 0;
