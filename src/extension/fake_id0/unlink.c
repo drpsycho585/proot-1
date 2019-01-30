@@ -22,10 +22,6 @@ int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Conf
 	if(status == 1)
 		return 0;
 
-	status = get_meta_path(orig_path, meta_path);
-	if(status < 0) 
-		return status;
-	
 	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
 	if(status < 0) 
 		return status;
@@ -34,11 +30,7 @@ int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Conf
 	if(status < 0) 
 		return status;
  
-	/** If the meta_file relating to the file being unlinked exists,
-	 *  unlink that as well.
-	 */
-	if(path_exists(meta_path) == 0) 
-		unlink(meta_path);
+	delete_meta_file(orig_path);
 
 	return 0;
 }

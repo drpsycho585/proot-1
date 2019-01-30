@@ -931,6 +931,8 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 #ifndef USERLAND
 	case PR_setgroups:
 	case PR_setgroups32:
+	case PR_mknod:
+	case PR_mknodat:
 #endif
 	case PR_capset:
 	case PR_setxattr:
@@ -1177,21 +1179,7 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 	}
 
 	case LINK2SYMLINK_UNLINK: {
-		int status;
-		char meta_path[PATH_MAX];
-
-		status = get_meta_path((char *) data1, meta_path);
-		if(status < 0)
-			return status;
-
-		/* If metafile doesn't already exist, get out */
-		if(path_exists(meta_path) != 0)
-			return 0;
-
-		status = unlink(meta_path);
-		if(status < 0) 
-			return status;
-
+		delete_meta_file((char *) data1);
 		return 0;
 	}
 #endif

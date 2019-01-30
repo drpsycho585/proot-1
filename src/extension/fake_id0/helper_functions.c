@@ -440,6 +440,39 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	return 0;
 }
 
+/*
+ * Deletes a meta file/entry
+ */
+int delete_meta_file(char path[PATH_MAX]) {
+	int status;
+	char meta_path[PATH_MAX];
+	char* err = NULL;
+	Tracee *tracee = NULL;
+	struct stat statBuf;
+	ino_t addr;
+
+	status = stat(path, &statBuf);
+	addr = statBuf.st_ino;
+
+	if ((status == 0) && (addr > 0)) {
+		leveldb_delete(db, woptions, (char *)&addr, sizeof(ino_t), &err);
+		if (err != NULL) {
+			VERBOSE(tracee, 2, "Meta DB delete failed.");
+		}
+		leveldb_free(err); err = NULL;
+	}
+
+	status = get_meta_path(path, meta_path);
+	if(status < 0)
+		return 0;
+
+	/* If metafile exists, delete it */
+	if(path_exists(meta_path))
+		unlink(meta_path);
+
+	return 0;
+}
+
 void modify_pid_status_files(Tracee *tracee, Config *config, char translated_path[PATH_MAX]) {
 	char new_path[PATH_MAX];
 	char new_translated_path[PATH_MAX];
