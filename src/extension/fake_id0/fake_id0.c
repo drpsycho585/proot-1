@@ -271,6 +271,8 @@ static FilteredSysnum filtered_sysnums[] = {
 	{ PR_faccessat,		FILTER_SYSEXIT },
 	{ PR_link,		FILTER_SYSEXIT },
 	{ PR_linkat,		FILTER_SYSEXIT },
+	{ PR_open,		FILTER_SYSEXIT },
+	{ PR_openat,		FILTER_SYSEXIT },
 	{ PR_mkdir,		FILTER_SYSEXIT },
 	{ PR_mkdirat,		FILTER_SYSEXIT },
 	{ PR_symlink,		FILTER_SYSEXIT },
@@ -820,6 +822,35 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
 	switch (sysnum) {
 
+#ifdef USERLAND
+	/* handle_open(tracee, fd_sysarg, path_sysarg, flags_sysarg, mode_sysarg, config) */
+	/* int openat(int dirfd, const char *pathname, int flags, mode_t mode) */
+	case PR_openat:
+		return handle_open_exit_end(tracee, SYSARG_2, SYSARG_3, SYSARG_4, config);
+	/* int open(const char *pathname, int flags, mode_t mode) */
+	case PR_open:
+		return handle_open_exit_end(tracee, SYSARG_1, SYSARG_2, SYSARG_3, config); 
+	/* int creat(const char *pathname, mode_t mode) */
+	case PR_creat:
+		return handle_open_exit_end(tracee, SYSARG_1, IGNORE_SYSARG, SYSARG_2, config);
+
+	/* handle_mk(tracee, fd_sysarg, path_sysarg, mode_sysarg, config) */
+	/* int mkdirat(int dirfd, const char *pathname, mode_t mode) */
+	case PR_mkdirat:
+		return handle_mk_exit_end(tracee, SYSARG_2, SYSARG_3, config);
+	/* int mkdir(const char *pathname, mode_t mode) */
+	case PR_mkdir:
+		return handle_mk_exit_end(tracee, SYSARG_1, SYSARG_2, config); 
+
+	/* handle_mk(tracee, fd_sysarg, path_sysarg, mode_sysarg, config) */
+	/* int mknodat(int dirfd, const char *pathname, mode_t mode, dev_t dev); */
+	case PR_mknodat:
+		return handle_mk_exit_end(tracee, SYSARG_2, SYSARG_3, config);
+	/* int mknod(const char *pathname, mode_t mode, dev_t dev); */
+	case PR_mknod:
+		return handle_mk_exit_end(tracee, SYSARG_1, SYSARG_2, config);
+#endif 
+
 	case PR_setuid:
 	case PR_setuid32:
 		SETXID(uid, ORIGINAL);
@@ -901,8 +932,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 	case PR_setgroups:
 	case PR_setgroups32:
 #endif
-	case PR_mknod:
-	case PR_mknodat:
 	case PR_capset:
 	case PR_setxattr:
 	case PR_lsetxattr:
@@ -952,45 +981,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 
 	case PR_getsockopt:
 		return handle_getsockopt_exit_end(tracee);
-
-#ifdef USERLAND
-/** Check to see if a meta was created for a file that no longer exists.
- *  If so, delete it.
- */
-	case PR_open:
-	case PR_openat:
-	case PR_creat: {
-		int status;
-		Reg sysarg;
-		char path[PATH_MAX];
-		char meta_path[PATH_MAX];
-
-		if(sysnum == PR_open || sysnum == PR_creat)
-			sysarg = SYSARG_1;
-		else
-			sysarg = SYSARG_2;
-
-		status = read_sysarg_path(tracee, path, sysarg, MODIFIED);
-		if(status < 0) 
-			return status;
-		if(status == 1) 
-			return 0;
-
-		/* If the file exists, it doesn't matter if a metafile exists. */
-		if(path_exists(path) == 0) 
-			return 0; 
-
-		status = get_meta_path(path, meta_path);
-		if(status < 0) 
-			return status;
-
-		/* If the metafile exists and the original file does not, delete it. */
-		if(path_exists(meta_path) == 0) 
-			status = unlink(meta_path);
-
-		return 0;
-	}	
-#endif
 
 	default:
 		return 0;

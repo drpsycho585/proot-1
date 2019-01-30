@@ -20,7 +20,6 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	int status, perms, access_mode;
 	char orig_path[PATH_MAX];
 	char rel_path[PATH_MAX];
-	char meta_path[PATH_MAX];
 	word_t flags;
 	mode_t mode;
 
@@ -29,10 +28,6 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 		return status;
 	if(status == 1) 
 		return 0;
-
-	status = get_meta_path(orig_path, meta_path);
-	if(status < 0) 
-		return status;
 
 	if(path_exists(orig_path) == 0) 
 		tracee->already_exists = true;
@@ -56,7 +51,7 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 		if(path_exists(orig_path) == 0) 
 			goto check;
 
-		status = check_dir_perms(tracee, 'w', meta_path, rel_path, config);
+		status = check_dir_perms(tracee, 'w', orig_path, rel_path, config);
 		if(status < 0) 
 			return status;
 
@@ -71,7 +66,7 @@ check:
 	if(status < 0) 
 		return status;
 	
-        perms = get_permissions(meta_path, config, 0);
+        perms = get_permissions(orig_path, config, 0);
 	access_mode = (flags & O_ACCMODE);
 
 	/* 0 = RDONLY, 1 = WRONLY, 2 = RDWR */
@@ -100,7 +95,7 @@ int handle_open_exit_end(Tracee *tracee, Reg path_sysarg,
 
 	//only matters if it succeeded 
 	result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-	if (result != 0) 
+	if (result < 0) 
 		return 0;
 
 	status = read_sysarg_path(tracee, orig_path, path_sysarg, MODIFIED);

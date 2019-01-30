@@ -249,7 +249,7 @@ int check_dir_perms(Tracee *tracee, char type, char path[PATH_MAX], char rel_pat
 
 	get_dir_path(path, shorten_path);
 
-	perms = get_permissions(path, config, 0);
+	perms = get_permissions(shorten_path, config, 0);
 
 	if(type == 'w' && (perms & w) != w) 
 		return -EACCES;
