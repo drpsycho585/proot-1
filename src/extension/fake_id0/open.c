@@ -95,7 +95,7 @@ int handle_open_exit_end(Tracee *tracee, Reg path_sysarg,
 
 	//only matters if it succeeded 
 	result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-	if (result < 0) 
+	if (result & ((word_t)1 << (sizeof(word_t)*8 - 1)))
 		return 0;
 
 	status = read_sysarg_path(tracee, orig_path, path_sysarg, MODIFIED);
@@ -114,6 +114,6 @@ int handle_open_exit_end(Tracee *tracee, Reg path_sysarg,
 		return 0;
 
 	mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
-	return write_meta_file(orig_path, mode, config->euid, config->egid, 1, config);
+	return write_meta_info(orig_path, mode, config->euid, config->egid, 1, config);
 }
 

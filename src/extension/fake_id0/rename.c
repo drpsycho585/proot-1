@@ -50,9 +50,9 @@ int handle_rename_enter_end(Tracee *tracee, Reg oldfd_sysarg, Reg oldpath_sysarg
 	if(status < 0)
 		return status;
 
-	//only read the meta file, so it can be deleted if an actual file exists
+	//only read the meta info, so it can delete the meta file if it exists
 	//TODO: Remove once there are no more meta files out there
-	read_meta_file(oldpath, &mode, &uid, &gid, config);
+	read_meta_info(oldpath, &mode, &uid, &gid, config);
 	
 	return 0;
 }

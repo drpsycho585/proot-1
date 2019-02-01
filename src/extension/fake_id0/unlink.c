@@ -30,7 +30,7 @@ int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Conf
 	if(status < 0) 
 		return status;
  
-	delete_meta_file(orig_path);
+	delete_meta_info(orig_path);
 
 	return 0;
 }

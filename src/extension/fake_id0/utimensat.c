@@ -45,7 +45,7 @@ int handle_utimensat_enter_end(Tracee *tracee, Reg dirfd_sysarg,
 	}
 
 	// Current user must be owner of file or root.
-	read_meta_file(path, &ignore_m, &owner, &ignore_g, config);
+	read_meta_info(path, &ignore_m, &owner, &ignore_g, config);
 	if(config->euid != owner && config->euid != 0) 
 		return -EACCES;
 

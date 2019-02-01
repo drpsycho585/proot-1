@@ -70,5 +70,5 @@ int handle_mk_exit_end(Tracee *tracee, Reg path_sysarg,
 
 	mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 	poke_reg(tracee, mode_sysarg, (mode|0700));
-	return write_meta_file(orig_path, mode, config->euid, config->egid, 1, config);
+	return write_meta_info(orig_path, mode, config->euid, config->egid, 1, config);
 }

@@ -20,11 +20,11 @@ int get_meta_path(char orig_path[PATH_MAX], char meta_path[PATH_MAX]);
 
 void init_meta_hash();
 
-int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group, Config *config);
+int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group, Config *config);
 
-int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group, bool is_creat, Config *config);
+int write_meta_info(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group, bool is_creat, Config *config);
 
-int delete_meta_file(char path[PATH_MAX]);
+int delete_meta_info(char path[PATH_MAX]);
 
 char * get_name(char path[PATH_MAX]);
 

@@ -41,11 +41,11 @@ int handle_chmod_enter_end(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
 	if(status < 0) 
 		return status;
 	
-	read_meta_file(path, &read_mode, &owner, &group, config);
+	read_meta_info(path, &read_mode, &owner, &group, config);
 	if(config->euid != owner && config->euid != 0) 
 		return -EPERM;
 
 	call_mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 	set_sysnum(tracee, PR_getuid);
-	return write_meta_file(path, call_mode, owner, group, 0, config);
+	return write_meta_info(path, call_mode, owner, group, 0, config);
 }

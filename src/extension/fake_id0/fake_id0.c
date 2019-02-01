@@ -1179,7 +1179,7 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 	}
 
 	case LINK2SYMLINK_UNLINK: {
-		delete_meta_file((char *) data1);
+		delete_meta_info((char *) data1);
 		return 0;
 	}
 #endif

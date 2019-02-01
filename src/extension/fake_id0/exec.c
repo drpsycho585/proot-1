@@ -34,7 +34,7 @@ int handle_exec_enter_end(Tracee *tracee, Reg filename_sysarg, Config *config)
 		return -EACCES;
 
 	/* If the setuid or setgid bits are on, change config accordingly. */
-	read_meta_file(path, &mode, &uid, &gid, config);
+	read_meta_info(path, &mode, &uid, &gid, config);
 	if ((mode & S_ISUID) != 0) {
 		config->ruid = 0;
 		config->euid = 0;

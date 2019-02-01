@@ -109,10 +109,10 @@ int handle_stat_exit_end(Tracee *tracee, Config *config, word_t sysnum) {
 	/** If the meta file exists, read the data from it and replace it the
 	 *  relevant data in the stat structure.
 	 */
-	status = read_meta_file(path, &mode, &uid, &gid, config);
+	status = read_meta_info(path, &mode, &uid, &gid, config);
 	if (status == 0) {
 		/** Get the file type and sticky/set-id bits of the original 
-		 *  file and add them to the mode found in the meta_file.
+		 *  file and add them to the mode from the meta info.
 		 */
 		read_data(tracee, &my_stat, peek_reg(tracee, ORIGINAL, sysarg), sizeof(struct stat));
 		my_stat.st_mode = (mode | ((my_stat.st_mode & S_IFMT) | (my_stat.st_mode & 07000)));

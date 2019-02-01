@@ -33,13 +33,6 @@ leveldb_options_t *options;
 leveldb_readoptions_t *roptions;
 leveldb_writeoptions_t *woptions;
 
-typedef struct diskhash_struct_s
-{
-    mode_t mode;
-    uid_t owner;
-    gid_t group;
-} diskhash_struct_t;
-
 /** Converts a decimal number to its octal representation. Used to convert
  *  system returned modes to a more common form for humans.
  */
@@ -199,7 +192,7 @@ int get_permissions(char path[PATH_MAX], Config *config, bool uses_real)
 	uid_t owner, emulated_uid;
 	gid_t group, emulated_gid;
 
-	read_meta_file(path, &mode, &owner, &group, config);
+	read_meta_info(path, &mode, &owner, &group, config);
 
 	if (uses_real) {
 		emulated_uid = config->ruid;
@@ -331,8 +324,7 @@ void init_meta_hash(Tracee *tracee) {
 	db = leveldb_open(options, db_path, &err);
 
 	if (err != NULL) {
-		VERBOSE(tracee, 2, "Failed to open Meta DB.");
-		return;
+		VERBOSE(tracee, 2, "Failed to open Meta DB: %s", err);
 	} else {
 		VERBOSE(tracee, 9, "Succeeded to open Meta DB.");
 	}
@@ -349,7 +341,7 @@ void init_meta_hash(Tracee *tracee) {
  *  functionality of PRoot, with the addition of setting the mode to 755.
  */
 
-int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group, Config *config)
+int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group, Config *config)
 {
 	FILE *fp;
 	int lcl_mode;
@@ -357,7 +349,7 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 	char meta_path[PATH_MAX];
 	struct stat statBuf;
 	size_t read_len;
-	diskhash_struct_t* hash_read_value;
+	struct stat *hash_read_value;
 	char* err = NULL;
 	ino_t addr;
 	Tracee *tracee = NULL;
@@ -366,20 +358,20 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 
 	addr = statBuf.st_ino;
 	if ((status == 0) && (addr > 0)) {
-		hash_read_value = (diskhash_struct_t *)leveldb_get(db, roptions, (char *)&addr, sizeof(ino_t), &read_len, &err);
+		hash_read_value = (struct stat *)leveldb_get(db, roptions, (char *)&addr, sizeof(ino_t), &read_len, &err);
 
 		if (err != NULL) {
 			read_len = 0;
-			VERBOSE(tracee, 2, "Meta DB read failed.");
+			VERBOSE(tracee, 2, "Meta DB read failed: %s", err);
 		}
 
 		leveldb_free(err); err = NULL;
 	}
 
         if ((status == 0) && (read_len > 0) && (addr > 0)) {
-		lcl_mode = hash_read_value->mode;
-		*owner = hash_read_value->owner;
-		*group = hash_read_value->group;
+		lcl_mode = hash_read_value->st_mode;
+		*owner = hash_read_value->st_uid;
+		*group = hash_read_value->st_gid;
 	} else { 
 		status = get_meta_path(path, meta_path);
 		fp = fopen(meta_path, "r");
@@ -404,13 +396,12 @@ int read_meta_file(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
  *  is_creat is set to true, the umask needs to be used since it would have
  *  been by a real system call.
  */
-
-int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
+int write_meta_info(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	bool is_creat, Config *config)
 {
 	struct stat statBuf;
 	int status;
-	diskhash_struct_t* ht_value;
+	struct stat *ht_value;
 	char* err = NULL;
 	ino_t addr;
 	Tracee *tracee = NULL;
@@ -426,13 +417,13 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	addr = statBuf.st_ino;
 
 	if ((status == 0) && (addr > 0)) {
-        	ht_value = malloc(sizeof(diskhash_struct_t));
-        	ht_value->mode = dtoo(mode);
-        	ht_value->owner = owner;
-        	ht_value->group = group;
-		leveldb_put(db, woptions, (char *)&addr, sizeof(ino_t), (char *)ht_value, sizeof(diskhash_struct_t), &err);
+        	ht_value = malloc(sizeof(struct stat));
+        	ht_value->st_mode = dtoo(mode);
+        	ht_value->st_uid = owner;
+        	ht_value->st_gid = group;
+		leveldb_put(db, woptions, (char *)&addr, sizeof(ino_t), (char *)ht_value, sizeof(struct stat), &err);
 		if (err != NULL) {
-			VERBOSE(tracee, 2, "Meta DB write failed.");
+			VERBOSE(tracee, 2, "Meta DB write failed: %s", err);
 		}
 		leveldb_free(err); err = NULL;
 	}
@@ -443,7 +434,7 @@ int write_meta_file(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 /*
  * Deletes a meta file/entry
  */
-int delete_meta_file(char path[PATH_MAX]) {
+int delete_meta_info(char path[PATH_MAX]) {
 	int status;
 	char meta_path[PATH_MAX];
 	char* err = NULL;

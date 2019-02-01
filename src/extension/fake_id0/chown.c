@@ -60,7 +60,7 @@ int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
 	if(status < 0)
 		return status;
 
-	read_meta_file(path, &mode, &read_owner, &read_group, config);
+	read_meta_info(path, &mode, &read_owner, &read_group, config);
 	owner = peek_reg(tracee, ORIGINAL, owner_sysarg);
 	/** When chown is called without an owner specified, eg 
 	 *  chown :1000 'file', the owner argument to the system call is implicitly
@@ -71,12 +71,12 @@ int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
 		owner = read_owner;
 	group = peek_reg(tracee, ORIGINAL, group_sysarg);
 	if(config->euid == 0) 
-		write_meta_file(path, mode, owner, group, 0, config);
+		write_meta_info(path, mode, owner, group, 0, config);
 
 	//TODO Handle chown properly: owner can only change the group of
 	//  a file to another group they belong to.
 	else if(config->euid == read_owner) {
-		write_meta_file(path, mode, read_owner, group, 0, config);
+		write_meta_info(path, mode, read_owner, group, 0, config);
 		poke_reg(tracee, owner_sysarg, read_owner);	
 	}
 
