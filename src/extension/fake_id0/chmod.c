@@ -6,8 +6,8 @@
 
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles chmod, fchmod, and fchmodat syscalls. Changes meta files to the new
- *  permissions if the meta file exists. See chmod(2) for returned permission
+/** Handles chmod, fchmod, and fchmodat syscalls. Changes meta info to the new
+ *  permissions if the meta info exists. See chmod(2) for returned permission
  *  errors. 
  */
 int handle_chmod_enter_end(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg, 

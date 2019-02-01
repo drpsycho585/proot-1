@@ -9,9 +9,9 @@
 #include "extension/fake_id0/open.h"
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles open, openat, and creat syscalls. Creates meta files to match the
- *  creation of new files, or checks the permissions of files that already
- *  exist given a matching meta file. See open(2) for returned permission
+/** Handles open, openat, and creat syscalls.
+ *  Checks the permissions of files that already
+ *  exist given matching meta info. See open(2) for returned permission
  *  errors.
  */
 int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, 
@@ -79,10 +79,8 @@ check:
 	return 0;
 }
 
-/** Handles open, openat, and creat syscalls. Creates meta files to match the
- *  creation of new files, or checks the permissions of files that already
- *  exist given a matching meta file. See open(2) for returned permission
- *  errors.
+/** Handles open, openat, and creat syscalls. Creates meta info to match the
+ *  creation of new files.
  */
 int handle_open_exit_end(Tracee *tracee, Reg path_sysarg, 
 	Reg flags_sysarg, Reg mode_sysarg, Config *config)

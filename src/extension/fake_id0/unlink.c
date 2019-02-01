@@ -5,8 +5,8 @@
 #include "extension/fake_id0/helper_functions.h"
 
 /** Handles unlink, unlinkat, and rmdir syscalls. Checks permissions in meta 
- *  files matching the file to be unlinked if the meta file exists. Unlinks
- *  the meta file if the call would be successful. See unlink(2) and rmdir(2)
+ *  files matching the file to be unlinked if meta info exists. Deletes
+ *  the meta info if the call would be successful. See unlink(2) and rmdir(2)
  *  for returned errors.
  */
 int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Config *config)
@@ -14,7 +14,6 @@ int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Conf
 	int status;
 	char orig_path[PATH_MAX];
 	char rel_path[PATH_MAX];
-	char meta_path[PATH_MAX];
 	
 	status = read_sysarg_path(tracee, orig_path, path_sysarg, CURRENT); 
 	if(status < 0) 

@@ -6,7 +6,7 @@
 
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles execve system calls. Checks permissions in a meta file if it exists
+/** Handles execve system calls. Checks permissions from the meta info if it exists
  *  and returns errors matching those in execve(2).
  */
 int handle_exec_enter_end(Tracee *tracee, Reg filename_sysarg, Config *config)

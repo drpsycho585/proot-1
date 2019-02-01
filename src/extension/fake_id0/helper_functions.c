@@ -337,7 +337,7 @@ void init_meta_hash(Tracee *tracee) {
 }
 
 /** Stores in mode, owner, and group the relative information found in the meta
- *  meta file. If the meta file doesn't exist, it reverts back to the original
+ *  info. If the meta info doesn't exist, it reverts back to the original
  *  functionality of PRoot, with the addition of setting the mode to 755.
  */
 
@@ -383,8 +383,9 @@ int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 			return 0;
 		}
 		fscanf(fp, "%d %d %d ", &lcl_mode, owner, group);
-		fclose(fp);
+		write_meta_info(path, lcl_mode, *owner, *group, false, config);
 		unlink(meta_path);
+		fclose(fp);
 	}
 	
 	lcl_mode = otod(lcl_mode);
@@ -392,7 +393,7 @@ int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 	return 0;
 }
 
-/** Writes mode, owner, and group to the meta file specified by path. If 
+/** Writes mode, owner, and group to the meta info specified by path. If 
  *  is_creat is set to true, the umask needs to be used since it would have
  *  been by a real system call.
  */
@@ -432,7 +433,7 @@ int write_meta_info(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 }
 
 /*
- * Deletes a meta file/entry
+ * Deletes meta info based on path
  */
 int delete_meta_info(char path[PATH_MAX]) {
 	int status;

@@ -6,7 +6,7 @@
 #include "extension/fake_id0/helper_functions.h"
 
 /** Handles the access and faccessat syscalls. Checks permissions according to
- *  a meta file if it exists. See access(2) for returned errors.
+ *  the meta info if it exists. See access(2) for returned errors.
  */
 int handle_access_enter_end(Tracee *tracee, Reg path_sysarg,
 	Reg mode_sysarg, Reg dirfd_sysarg, Config *config)

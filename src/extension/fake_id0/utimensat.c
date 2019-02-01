@@ -8,7 +8,7 @@
 #include "extension/fake_id0/utimensat.h"
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles the utimensat syscall. Checks permissions of the meta file if it
+/** Handles the utimensat syscall. Checks permissions from the meta info if it
  *  exists and returns an error if the call would not pass according to the 
  *  errors found in utimensat(2).
  */

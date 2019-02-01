@@ -26,8 +26,8 @@ int handle_chown_enter_end(Tracee *tracee, Config *config, Reg uid_sysarg, Reg g
 #endif /* ifndef USERLAND */
 
 #ifdef USERLAND
-/** Handles chown, lchown, fchown, and fchownat syscalls. Changes the meta file
- *  to reflect arguments sent to the syscall if the meta file exists. See
+/** Handles chown, lchown, fchown, and fchownat syscalls. Changes the meta info 
+ *  to reflect arguments sent to the syscall if the meta info exists. See
  *  chown(2) for returned permission errors.
  */
 int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
@@ -65,7 +65,7 @@ int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
 	/** When chown is called without an owner specified, eg 
 	 *  chown :1000 'file', the owner argument to the system call is implicitly
 	 *  set to -1. To avoid this, the owner argument is replaced with the owner
-	 *  according to the meta file if it exists, or the current euid.
+	 *  according to the meta info if it exists, or the current euid.
 	 */
 	if((int) owner == -1)
 		owner = read_owner;

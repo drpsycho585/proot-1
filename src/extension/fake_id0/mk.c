@@ -4,8 +4,8 @@
 
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles mkdir, mkdirat, mknod, and mknodat syscalls. Creates a matching
- *  meta file. See mkdir(2) and mknod(2) for returned permission errors.
+/** Handles mkdir, mkdirat, mknod, and mknodat syscalls. Creates matching
+ *  meta info. See mkdir(2) and mknod(2) for returned permission errors.
  */
 int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, 
 	Reg mode_sysarg, Config *config)
@@ -42,8 +42,8 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	return 0;
 }
 
-/** Handles mkdir, mkdirat, mknod, and mknodat syscalls. Creates a matching
- *  meta file. See mkdir(2) and mknod(2) for returned permission errors.
+/** Handles mkdir, mkdirat, mknod, and mknodat syscalls. Creates matching
+ *  meta info. See mkdir(2) and mknod(2) for returned permission errors.
  */
 int handle_mk_exit_end(Tracee *tracee, Reg path_sysarg, 
 	Reg mode_sysarg, Config *config)
@@ -64,7 +64,7 @@ int handle_mk_exit_end(Tracee *tracee, Reg path_sysarg,
 	if(status == 1)
 		return 0;
 
-	/* If the file already existed get iyt*/
+	/* If the file already existed get out*/
 	if(tracee->already_exists)
 		return 0;
 

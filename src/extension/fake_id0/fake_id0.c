@@ -507,7 +507,7 @@ static int handle_perm_err_exit_end(Tracee *tracee, Config *config) {
 
 #ifdef USERLAND
 	/** If the call has been set to PR_void, it "succeeded" in
-	 *  altering a meta file correctly.
+	 *  altering a meta info correctly.
 	 */ 
 	if(get_sysnum(tracee, CURRENT) == PR_getuid && (int) result != 0) 
 		poke_reg(tracee, SYSARG_RESULT, 0);

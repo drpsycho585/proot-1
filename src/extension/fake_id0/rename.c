@@ -5,8 +5,8 @@
 #include "extension/fake_id0/rename.h"
 #include "extension/fake_id0/helper_functions.h"
 
-/** Handles rename and renameat syscalls. If a meta file matching the file to
- *  to be renamed exists, renames the meta file as well. See rename(2) for
+/** Handles rename and renameat syscalls. 
+ *  Check permissions of whether a rename is allowed. See rename(2) for
  *  returned permission errors.
  */
 int handle_rename_enter_end(Tracee *tracee, Reg oldfd_sysarg, Reg oldpath_sysarg, 
