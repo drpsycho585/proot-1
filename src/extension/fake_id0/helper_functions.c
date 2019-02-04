@@ -369,27 +369,27 @@ int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 	}
 
         if ((status == 0) && (read_len > 0) && (addr > 0)) {
-		lcl_mode = hash_read_value->st_mode;
+		*mode = hash_read_value->st_mode;
 		*owner = hash_read_value->st_uid;
 		*group = hash_read_value->st_gid;
-	} else { 
-		status = get_meta_path(path, meta_path);
-		fp = fopen(meta_path, "r");
-		if(!fp || (status < 0)) {
-			/* If the metafile doesn't exist, allow overly permissive behavior. */
-			*owner = config->euid;
-			*group = config->egid;
-			*mode = otod(755);
-			return 0;
-		}
-		fscanf(fp, "%d %d %d ", &lcl_mode, owner, group);
-		write_meta_info(path, lcl_mode, *owner, *group, false, config);
-		unlink(meta_path);
-		fclose(fp);
+		return 0;
 	}
-	
-	lcl_mode = otod(lcl_mode);
-	*mode = (mode_t)lcl_mode;
+
+	status = get_meta_path(path, meta_path);
+	fp = fopen(meta_path, "r");
+	if(!fp || (status < 0)) {
+		/* If the metafile doesn't exist, allow overly permissive behavior. */
+		*owner = config->euid;
+		*group = config->egid;
+		*mode = otod(777);
+		return 0;
+	}
+	fscanf(fp, "%d %d %d ", &lcl_mode, owner, group);
+	*mode = otod(lcl_mode);
+	write_meta_info(path, *mode, *owner, *group, false, config);
+	unlink(meta_path);
+	fclose(fp);
+
 	return 0;
 }
 
@@ -419,7 +419,7 @@ int write_meta_info(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 
 	if ((status == 0) && (addr > 0)) {
         	ht_value = malloc(sizeof(struct stat));
-        	ht_value->st_mode = dtoo(mode);
+        	ht_value->st_mode = mode;
         	ht_value->st_uid = owner;
         	ht_value->st_gid = group;
 		leveldb_put(db, woptions, (char *)&addr, sizeof(ino_t), (char *)ht_value, sizeof(struct stat), &err);
