@@ -13,22 +13,13 @@ int handle_unlink_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg, Conf
 {
 	int status;
 	char orig_path[PATH_MAX];
-	char rel_path[PATH_MAX];
-	
+
 	status = read_sysarg_path(tracee, orig_path, path_sysarg, CURRENT); 
 	if(status < 0) 
 		return status;
 	if(status == 1)
 		return 0;
 
-	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
-	if(status < 0) 
-		return status;
-	
-	status = check_dir_perms(tracee, 'w', orig_path, rel_path, config);
-	if(status < 0) 
-		return status;
- 
 	delete_meta_info(orig_path);
 
 	return 0;

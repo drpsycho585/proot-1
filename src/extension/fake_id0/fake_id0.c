@@ -269,14 +269,10 @@ static FilteredSysnum filtered_sysnums[] = {
 	{ PR_access,		FILTER_SYSEXIT },
 	{ PR_creat,		FILTER_SYSEXIT },
 	{ PR_faccessat,		FILTER_SYSEXIT },
-	{ PR_link,		FILTER_SYSEXIT },
-	{ PR_linkat,		FILTER_SYSEXIT },
 	{ PR_open,		FILTER_SYSEXIT },
 	{ PR_openat,		FILTER_SYSEXIT },
 	{ PR_mkdir,		FILTER_SYSEXIT },
 	{ PR_mkdirat,		FILTER_SYSEXIT },
-	{ PR_symlink,		FILTER_SYSEXIT },
-	{ PR_symlinkat,		FILTER_SYSEXIT },
 	{ PR_umask,		FILTER_SYSEXIT },
 	{ PR_unlink,		FILTER_SYSEXIT },
 	{ PR_unlinkat,		FILTER_SYSEXIT },
@@ -649,22 +645,6 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 	/* handle_exec(tracee, filename_sysarg, config) */
 	case PR_execve:
 		return handle_exec_enter_end(tracee, SYSARG_1, config);
-
-	/* handle_link(tracee, olddirfd_sysarg, oldpath_sysarg, newdirfd_sysarg, newpath_sysarg, config) */
-	/* int link(const char *oldpath, const char *newpath) */
-	case PR_link:
-		return handle_link_enter_end(tracee, IGNORE_SYSARG, SYSARG_1, IGNORE_SYSARG, SYSARG_2, config);
-	/* int linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags) */
-	case PR_linkat:
-		return handle_link_enter_end(tracee, SYSARG_1, SYSARG_2, SYSARG_3, SYSARG_4, config);
-
-	/* handle_symlink(tracee, oldpath_sysarg, newdirfd_sysarg, newpath_sysarg, config) */
-	/* int symlink(const char *target, const char *linkpath); */
-	case PR_symlink:
-		return handle_symlink_enter_end(tracee, SYSARG_1, IGNORE_SYSARG, SYSARG_2, config);
-	/* int symlinkat(const char *target, int newdirfd, const char *linkpath); */
-	case PR_symlinkat:
-		return handle_symlink_enter_end(tracee, SYSARG_1, SYSARG_2, SYSARG_3, config);
 
 	/* int fstat(int fd, struct stat *buf); */
 	case PR_fstat:

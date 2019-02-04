@@ -19,7 +19,6 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 {   
 	int status, perms, access_mode;
 	char orig_path[PATH_MAX];
-	char rel_path[PATH_MAX];
 	word_t flags;
 	mode_t mode;
 
@@ -43,17 +42,9 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	if(path_exists(orig_path) != 0 && (flags & O_CREAT) != O_CREAT) 
 		return 0;
 
-	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
-	if(status < 0) 
-		return status; 
-
 	if((flags & O_CREAT) == O_CREAT) { 
 		if(path_exists(orig_path) == 0) 
 			goto check;
-
-		status = check_dir_perms(tracee, 'w', orig_path, rel_path, config);
-		if(status < 0) 
-			return status;
 
 		mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 		poke_reg(tracee, mode_sysarg, (mode|0700));
@@ -61,10 +52,6 @@ int handle_open_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	}
 
 check:
-	
-	status = check_dir_perms(tracee, 'r', orig_path, rel_path, config);
-	if(status < 0) 
-		return status;
 	
         perms = get_permissions(orig_path, config, 0);
 	access_mode = (flags & O_ACCMODE);

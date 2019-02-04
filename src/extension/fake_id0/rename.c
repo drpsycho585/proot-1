@@ -17,38 +17,12 @@ int handle_rename_enter_end(Tracee *tracee, Reg oldfd_sysarg, Reg oldpath_sysarg
 	gid_t gid;
 	mode_t mode;
 	char oldpath[PATH_MAX];
-	char newpath[PATH_MAX];
-	char rel_oldpath[PATH_MAX];
-	char rel_newpath[PATH_MAX];
-	char meta_path[PATH_MAX];
 
 	status = read_sysarg_path(tracee, oldpath, oldpath_sysarg, CURRENT); 
 	if(status < 0)
 		return status;
 	if(status == 1)
 		return 0;
-
-	status = read_sysarg_path(tracee, newpath, newpath_sysarg, CURRENT); 
-	if(status < 0)
-		return status;
-	if(status == 1)
-		return 0;
-
-	status = get_fd_path(tracee, rel_oldpath, oldfd_sysarg, CURRENT);
-	if(status < 0)
-		return status;
-
-	status = get_fd_path(tracee, rel_newpath, newfd_sysarg, CURRENT);
-	if(status < 0)
-		return status;
-
-	status = check_dir_perms(tracee, 'w', oldpath, rel_oldpath, config);
-	if(status < 0)
-		return status;
-
-	status = check_dir_perms(tracee, 'w', newpath, rel_newpath, config);
-	if(status < 0)
-		return status;
 
 	//only read the meta info, so it can delete the meta file if it exists
 	//TODO: Remove once there are no more meta files out there

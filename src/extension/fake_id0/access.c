@@ -13,21 +13,12 @@ int handle_access_enter_end(Tracee *tracee, Reg path_sysarg,
 {
 	int status, mode, perms, mask;
 	char path[PATH_MAX];
-	char rel_path[PATH_MAX];
 
 	status = read_sysarg_path(tracee, path, path_sysarg, CURRENT);
 	if(status < 0)
 		return status;
 	if(status == 1)
 		return 0;
-
-	status = get_fd_path(tracee, rel_path, dirfd_sysarg, CURRENT);
-	if(status < 0)
-		return status;
-
-	status = check_dir_perms(tracee, 'r', path, rel_path, config);
-	if(status < 0) 
-		return status;
 
 	// Only care about calls checking permissions.
 	mode = peek_reg(tracee, ORIGINAL, mode_sysarg);

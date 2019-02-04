@@ -18,7 +18,6 @@ int handle_chmod_enter_end(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
 	uid_t owner;
 	gid_t group;
 	char path[PATH_MAX];
-	char rel_path[PATH_MAX];
 
 	// When path_sysarg is set to IGNORE, the call being handled is fchmod.
 	if(path_sysarg == IGNORE_SYSARG) 
@@ -33,14 +32,6 @@ int handle_chmod_enter_end(Tracee *tracee, Reg path_sysarg, Reg mode_sysarg,
 		return 0;
 	}
 
-	status = get_fd_path(tracee, rel_path, dirfd_sysarg, CURRENT);
-	if(status < 0)
-		return status;
-
-	status = check_dir_perms(tracee, 'r', path, rel_path, config);
-	if(status < 0) 
-		return status;
-	
 	read_meta_info(path, &read_mode, &owner, &group, config);
 	if(config->euid != owner && config->euid != 0) 
 		return -EPERM;

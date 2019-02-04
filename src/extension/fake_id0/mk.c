@@ -13,7 +13,6 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 	int status;
 	mode_t mode;
 	char orig_path[PATH_MAX];
-	char rel_path[PATH_MAX];
 
 	status  = read_sysarg_path(tracee, orig_path, path_sysarg, CURRENT);
 	if(status < 0)
@@ -29,14 +28,6 @@ int handle_mk_enter_end(Tracee *tracee, Reg fd_sysarg, Reg path_sysarg,
 		return 0;
 	}
 
-	status = get_fd_path(tracee, rel_path, fd_sysarg, CURRENT);
-	if(status < 0) 
-		return status;
-	
-	status = check_dir_perms(tracee, 'w', orig_path, rel_path, config);
-	if(status < 0) 
-		return status;
-	
 	mode = peek_reg(tracee, ORIGINAL, mode_sysarg);
 	poke_reg(tracee, mode_sysarg, (mode|0700));
 	return 0;

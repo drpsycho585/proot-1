@@ -38,7 +38,6 @@ int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
 	uid_t owner, read_owner;
 	gid_t group, read_group;
 	char path[PATH_MAX];
-	char rel_path[PATH_MAX];
 	
 	if(path_sysarg == IGNORE_SYSARG)
 		status = get_fd_path(tracee, path, fd_sysarg, CURRENT);
@@ -51,14 +50,6 @@ int handle_chown_enter_end(Tracee *tracee, Reg path_sysarg, Reg owner_sysarg,
 		set_sysnum(tracee, PR_getuid);
 		return 0;
 	}
-
-	status = get_fd_path(tracee, rel_path, dirfd_sysarg, CURRENT);
-	if(status < 0)
-		return status;
-
-	status = check_dir_perms(tracee, 'r', path, rel_path, config);
-	if(status < 0)
-		return status;
 
 	read_meta_info(path, &mode, &read_owner, &read_group, config);
 	owner = peek_reg(tracee, ORIGINAL, owner_sysarg);
