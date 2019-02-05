@@ -354,7 +354,7 @@ int read_meta_info(char path[PATH_MAX], mode_t *mode, uid_t *owner, gid_t *group
 	ino_t addr;
 	Tracee *tracee = NULL;
 
-	status = stat(path, &statBuf);
+	status = lstat(path, &statBuf);
 
 	addr = statBuf.st_ino;
 	if ((status == 0) && (addr > 0)) {
@@ -414,7 +414,7 @@ int write_meta_info(char path[PATH_MAX], mode_t mode, uid_t owner, gid_t group,
 	if(is_creat)
 		mode = (mode & ~(config->umask) & 0777);
 
-	status = stat(path, &statBuf);
+	status = lstat(path, &statBuf);
 	addr = statBuf.st_ino;
 
 	if ((status == 0) && (addr > 0)) {
