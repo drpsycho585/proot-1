@@ -549,6 +549,10 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 	sysnum = get_sysnum(tracee, ORIGINAL);
 	switch (sysnum) {
 
+	/* handle_exec(tracee, filename_sysarg, config) */
+	case PR_execve:
+		return handle_exec_enter_end(tracee, SYSARG_1, config);
+
 #ifdef USERLAND
 	/* handle_open(tracee, fd_sysarg, path_sysarg, flags_sysarg, mode_sysarg, config) */
 	/* int openat(int dirfd, const char *pathname, int flags, mode_t mode) */
@@ -642,9 +646,6 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 	case PR_faccessat:
 		return handle_access_enter_end(tracee, SYSARG_2, SYSARG_3, SYSARG_1, config); 
 
-	/* handle_exec(tracee, filename_sysarg, config) */
-	case PR_execve:
-		return handle_exec_enter_end(tracee, SYSARG_1, config);
 
 	/* handle_link(tracee, olddirfd_sysarg, oldpath_sysarg, newdirfd_sysarg, newpath_sysarg, config) */
 	/* int link(const char *oldpath, const char *newpath) */
@@ -711,14 +712,11 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 	case PR_setgroups32:
 	case PR_getgroups:
 	case PR_getgroups32:
-		/* TODO */
-#ifdef USERLAND
-	/* TODO: need to actually emulate these */
-	//On Android, the system is returning gids that our rootfs knows nothing about
-	//which is generating errors
-	set_sysnum(tracee, PR_void);
-	return 0;
-#endif
+		/* TODO: need to actually emulate these */
+		//On Android, the system is returning gids that our rootfs knows nothing about
+		//which is generating errors
+		set_sysnum(tracee, PR_void);
+		return 0;
 
 	default:
 		return 0;
@@ -883,6 +881,7 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 		poke_reg(tracee, SYSARG_RESULT, config->umask);
 		config->umask = (mode_t) peek_reg(tracee, MODIFIED, SYSARG_1); 
 		return 0;
+#endif
 
 	case PR_setgroups:
 	case PR_setgroups32:
@@ -891,7 +890,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 		/*TODO: need to really emulate*/
 		poke_reg(tracee, SYSARG_RESULT, 0);
 		return 0;
-#endif
 
 	case PR_setdomainname:
 	case PR_sethostname:
@@ -995,7 +993,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 	}
 }
 
-#ifdef USERLAND
 static int handle_sigsys(Tracee *tracee, Config *config)
 {
 	word_t sysnum;
@@ -1034,7 +1031,6 @@ static int handle_sigsys(Tracee *tracee, Config *config)
 		return 0;
 	}
 }
-#endif
 
 static int handle_sysexit_start(Tracee *tracee, Config *config) {
 	word_t result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
@@ -1219,7 +1215,6 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 		return handle_sysexit_end(tracee, config);
 	}
 
-#ifdef USERLAND
 	case SIGSYS_OCC: {
 		Tracee *tracee = TRACEE(extension);
 		Config *config = talloc_get_type_abort(extension->config, Config);
@@ -1260,7 +1255,6 @@ int fake_id0_callback(Extension *extension, ExtensionEvent event, intptr_t data1
 		modify_pid_status_files(tracee, config, (char *) data1);
 		return 0;
 	}
-#endif
 
 	case SYSCALL_EXIT_START: {
 		Tracee *tracee = TRACEE(extension);
