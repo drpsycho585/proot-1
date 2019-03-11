@@ -14,6 +14,7 @@
 
 /* Change the HIDDEN_PREFIX to change which files are hidden */
 #define HIDDEN_PREFIX ".proot"
+#define HIDDEN_PREFIX2 ".l2s"  //TODO, remove this once enough time has gone by
 
 struct linux_dirent {
     unsigned long d_ino;
@@ -109,7 +110,7 @@ static int handle_getdents(Tracee *tracee)
                 curr64 = (struct linux_dirent64 *)ptr;
 
                 /* if the name does not matche a given prefix */
-                if (!hasprefix(HIDDEN_PREFIX, curr64->d_name)) {
+                if (!(hasprefix(HIDDEN_PREFIX, curr64->d_name) || hasprefix(HIDDEN_PREFIX2, curr64->d_name))) {
 
                     /* copy the information */
                     mybcopy(ptr, pos, curr64->d_reclen);
@@ -117,7 +118,7 @@ static int handle_getdents(Tracee *tracee)
                     /* move the pos and nleft */
                     pos += curr64->d_reclen;
                     nleft += curr64->d_reclen;
-                }
+		}
                 /* move to the next linux_dirent */
                 ptr += curr64->d_reclen;
             }
@@ -128,7 +129,7 @@ static int handle_getdents(Tracee *tracee)
                 curr32 = (struct linux_dirent *)ptr;
 
                 /* if the name does not matche a given prefix */
-                if (!hasprefix(HIDDEN_PREFIX, curr32->d_name)) {
+                if (!(hasprefix(HIDDEN_PREFIX, curr32->d_name) || hasprefix(HIDDEN_PREFIX2, curr32->d_name))) {
 
                     /* copy the information */
                     mybcopy(ptr, pos, curr32->d_reclen);
@@ -136,7 +137,7 @@ static int handle_getdents(Tracee *tracee)
                     /* move the pos and nleft */
                     pos += curr32->d_reclen;
                     nleft += curr32->d_reclen;
-                }
+		}
                 /* move to the next linux_dirent */
                 ptr += curr32->d_reclen;
             }
