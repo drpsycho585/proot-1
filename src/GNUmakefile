@@ -16,7 +16,7 @@ OBJDUMP  ?= $(CROSS_COMPILE)objdump
 
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE -I. -I$(VPATH)
 CFLAGS   += -Wall -Wextra -O2
-LDFLAGS  += -ltalloc -Wl,-z,noexecstack
+LDFLAGS  += -ltalloc -llog -Wl,-z,noexecstack
 
 OBJECTS += \
 	cli/cli.o		\
@@ -70,6 +70,8 @@ OBJECTS += \
 	extension/fake_id0/symlink.o \
 	extension/fake_id0/mk.o \
 	extension/fake_id0/stat.o \
+	extension/fake_id0/shm.o \
+	extension/fake_id0/sem.o \
         extension/fake_id0/helper_functions.o \
 	extension/fake_id0/fake_id0.o \
 	extension/hidden_files/hidden_files.o \
