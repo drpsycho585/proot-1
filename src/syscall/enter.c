@@ -83,6 +83,85 @@ static int translate_sysarg(Tracee *tracee, Reg reg, Type type)
 	return translate_path2(tracee, AT_FDCWD, old_path, reg, type);
 }
 
+int translate_chdir_enter(Tracee *tracee, RegVersion stage, int *status)
+{
+	int dirfd;
+
+	char path[PATH_MAX];
+	char oldpath[PATH_MAX];
+
+	word_t syscall_number;
+
+	struct stat statl;
+	char *tmp;
+
+	/* The ending "." ensures an error will be reported if
+	 * path does not exist or if it is not a directory.  */
+	syscall_number = get_sysnum(tracee, stage);
+	if (syscall_number == PR_chdir) {
+		*status = get_sysarg_path(tracee, path, SYSARG_1);
+		if (*status < 0)
+			return 0;
+
+		*status = join_paths(2, oldpath, path, ".");
+		if (*status < 0)
+			return 0;
+
+		dirfd = AT_FDCWD;
+	}
+	else {
+		strcpy(oldpath, ".");
+		dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
+	}
+
+	*status = translate_path(tracee, path, dirfd, oldpath, true);
+	if (*status < 0)
+		return 0;
+
+	*status = lstat(path, &statl);
+	if (*status < 0)
+		return 0;
+
+	/* Check this directory is accessible.  */
+	if ((statl.st_mode & S_IXUSR) == 0)
+		return -EACCES;
+
+	/* Sadly this method doesn't detranslate statefully,
+	 * this means that there's an ambiguity when several
+	 * bindings are from the same host path:
+	 *
+	 *    $ proot -m /tmp:/a -m /tmp:/b fchdir_getcwd /a
+	 *    /b
+	 *
+	 *    $ proot -m /tmp:/b -m /tmp:/a fchdir_getcwd /a
+	 *    /a
+	 *
+	 * A solution would be to follow each file descriptor
+	 * just like it is done for cwd.
+	 */
+
+	*status = detranslate_path(tracee, path, NULL);
+	if (*status < 0)
+		return 0;
+
+	/* Remove the trailing "/" or "/.".  */
+	chop_finality(path);
+
+	tmp = talloc_strdup(tracee->fs, path);
+	if (tmp == NULL) {
+		*status = -ENOMEM;
+		return 0;
+	}
+	TALLOC_FREE(tracee->fs->cwd);
+
+	tracee->fs->cwd = tmp;
+	talloc_set_name_const(tracee->fs->cwd, "$cwd");
+
+	set_sysnum(tracee, PR_void);
+	*status = 0;
+	return 0;
+}
+
 /**
  * Translate the input arguments of the current @tracee's syscall in the
  * @tracee->pid process area. This function sets @tracee->status to
@@ -144,75 +223,11 @@ int translate_syscall_enter(Tracee *tracee)
 		break;
 
 	case PR_fchdir:
-	case PR_chdir: {
-		struct stat statl;
-		char *tmp;
-
-		/* The ending "." ensures an error will be reported if
-		 * path does not exist or if it is not a directory.  */
-		if (syscall_number == PR_chdir) {
-			status = get_sysarg_path(tracee, path, SYSARG_1);
-			if (status < 0)
-				break;
-
-			status = join_paths(2, oldpath, path, ".");
-			if (status < 0)
-				break;
-
-			dirfd = AT_FDCWD;
-		}
-		else {
-			strcpy(oldpath, ".");
-			dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
-		}
-
-		status = translate_path(tracee, path, dirfd, oldpath, true);
-		if (status < 0)
-			break;
-
-		status = lstat(path, &statl);
-		if (status < 0)
-			break;
-
-		/* Check this directory is accessible.  */
-		if ((statl.st_mode & S_IXUSR) == 0)
-			return -EACCES;
-
-		/* Sadly this method doesn't detranslate statefully,
-		 * this means that there's an ambiguity when several
-		 * bindings are from the same host path:
-		 *
-		 *    $ proot -m /tmp:/a -m /tmp:/b fchdir_getcwd /a
-		 *    /b
-		 *
-		 *    $ proot -m /tmp:/b -m /tmp:/a fchdir_getcwd /a
-		 *    /a
-		 *
-		 * A solution would be to follow each file descriptor
-		 * just like it is done for cwd.
-		 */
-
-		status = detranslate_path(tracee, path, NULL);
-		if (status < 0)
-			break;
-
-		/* Remove the trailing "/" or "/.".  */
-		chop_finality(path);
-
-		tmp = talloc_strdup(tracee->fs, path);
-		if (tmp == NULL) {
-			status = -ENOMEM;
-			break;
-		}
-		TALLOC_FREE(tracee->fs->cwd);
-
-		tracee->fs->cwd = tmp;
-		talloc_set_name_const(tracee->fs->cwd, "$cwd");
-
-		set_sysnum(tracee, PR_void);
-		status = 0;
+	case PR_chdir:
+		status2 = translate_chdir_enter(tracee, ORIGINAL, &status);
+		if (status2 < 0)
+			return status2;
 		break;
-	}
 
 	case PR_bind:
 	case PR_connect: {

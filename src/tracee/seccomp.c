@@ -381,6 +381,18 @@ static int handle_seccomp_event_common(Tracee *tracee)
 	}
 #endif
 
+	case PR_chdir: {
+		int status;
+		int status2;
+		status2 = translate_chdir_enter(tracee, ORIGINAL_SECCOMP_REWRITE, &status);
+		if (status2 < 0) {
+			set_result_after_seccomp(tracee, status2);
+			break;
+		}
+		set_result_after_seccomp(tracee, status);
+		break;
+	}
+
 	//required for when an extention changes the sysnum to PR_void and that gets picked up by the filtering
 	case PR_void:
 		set_result_after_seccomp(tracee, 0);

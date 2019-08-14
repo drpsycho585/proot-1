@@ -359,7 +359,6 @@ static FilteredSysnum filtered_sysnums[] = {
 	{ PR_semctl,		FILTER_SYSEXIT },
 	{ PR_semop,		FILTER_SYSEXIT },
 	{ PR_prctl,		FILTER_SYSEXIT },
-	{ PR_chdir,		FILTER_SYSEXIT },
 	FILTERED_SYSNUM_END,
 };
 
@@ -731,9 +730,6 @@ static int handle_sysenter_end(Tracee *tracee, Config *config)
 		set_sysnum(tracee, PR_void);
 		return 0;
 
-	case PR_chdir:
-		return handle_chdir_sysenter_end(tracee, ORIGINAL);
-
 	/* int shmctl(int shmid, int cmd, struct shmid_ds *buf); */
 	case PR_shmctl:
 	/* int shmget(key_t key, size_t size, int shmflg); */
@@ -1026,8 +1022,6 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 		return 0;
 	}	
 #endif
-	case PR_chdir: 
-		return handle_chdir_sysexit_end(tracee, stage);
 	case PR_shmat: 
 		return handle_shmat_sysexit_end(tracee, stage);
 	case PR_shmdt:
@@ -1083,11 +1077,6 @@ static int handle_sigsys(Tracee *tracee, Config *config)
 		if (status < 0)
 			return status;
 		return 1;
-	case PR_chdir:
-		status = handle_chdir_sysenter_end(tracee, CURRENT);
-		if (status < 0)
-			return status;
-		return 2;
 	case PR_shmat:
 		status = handle_shmat_sysenter_end(tracee, CURRENT);
 		if (status < 0)
