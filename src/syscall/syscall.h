@@ -36,4 +36,6 @@ extern void translate_syscall(Tracee *tracee);
 extern int  translate_syscall_enter(Tracee *tracee);
 extern void translate_syscall_exit(Tracee *tracee);
 
+extern int translate_chdir_enter(Tracee *tracee, RegVersion stage, int *status);
+
 #endif /* SYSCALL_H */
