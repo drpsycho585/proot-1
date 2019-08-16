@@ -55,7 +55,6 @@
 #include "extension/fake_id0/stat.h"
 #include "extension/fake_id0/exec.h"
 #include "extension/fake_id0/shm.h"
-#include "extension/fake_id0/chdir.h"
 #include "extension/fake_id0/sem.h"
 #include "extension/fake_id0/prctl.h"
 #include "extension/fake_id0/helper_functions.h"
