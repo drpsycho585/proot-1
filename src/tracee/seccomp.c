@@ -384,7 +384,9 @@ static int handle_seccomp_event_common(Tracee *tracee)
 	case PR_chdir: {
 		int status;
 		int status2;
+		VERBOSE(tracee, 4, "SIGSYS PR_chdir being handled");
 		status2 = translate_chdir_enter(tracee, ORIGINAL_SECCOMP_REWRITE, &status);
+		VERBOSE(tracee, 4, "SIGSYS PR_chdir status: %d, status2: %d", status, status2);
 		if (status2 < 0) {
 			set_result_after_seccomp(tracee, status2);
 			break;

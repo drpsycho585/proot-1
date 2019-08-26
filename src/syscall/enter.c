@@ -43,6 +43,8 @@
 #include "path/canon.h"
 #include "arch.h"
 
+#include "cli/note.h"
+
 /**
  * Translate @path and put the result in the @tracee's memory address
  * space pointed to by the @reg argument of the current syscall. See
@@ -103,6 +105,8 @@ int translate_chdir_enter(Tracee *tracee, RegVersion stage, int *status)
 		if (*status < 0)
 			return 0;
 
+		VERBOSE(tracee, 4, "SIGSYS PR_chdir path: %s", path);
+
 		*status = join_paths(2, oldpath, path, ".");
 		if (*status < 0)
 			return 0;
@@ -114,9 +118,11 @@ int translate_chdir_enter(Tracee *tracee, RegVersion stage, int *status)
 		dirfd = peek_reg(tracee, CURRENT, SYSARG_1);
 	}
 
+	VERBOSE(tracee, 4, "SIGSYS PR_chdir oldpath: %s", oldpath);
 	*status = translate_path(tracee, path, dirfd, oldpath, true);
 	if (*status < 0)
 		return 0;
+	VERBOSE(tracee, 4, "SIGSYS PR_chdir translated path: %s", path);
 
 	*status = lstat(path, &statl);
 	if (*status < 0)
@@ -146,6 +152,7 @@ int translate_chdir_enter(Tracee *tracee, RegVersion stage, int *status)
 
 	/* Remove the trailing "/" or "/.".  */
 	chop_finality(path);
+	VERBOSE(tracee, 4, "SIGSYS PR_chdir final path: %s", path);
 
 	tmp = talloc_strdup(tracee->fs, path);
 	if (tmp == NULL) {
