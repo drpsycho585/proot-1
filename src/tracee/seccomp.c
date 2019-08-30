@@ -126,6 +126,12 @@ static int handle_seccomp_event_common(Tracee *tracee)
 
 	sysnum = get_sysnum(tracee, CURRENT);
 
+	if (tracee->syscall_void_at_enter_end) {
+		VERBOSE(tracee, 4, "Handling PR_void, just setting the saved result");
+		set_result_after_seccomp(tracee, tracee->syscall_void_at_enter_end_result);
+		return 0;
+	}
+
 	status = notify_extensions(tracee, SIGSYS_OCC, 0, 0);
 	if (status < 0) {
 		VERBOSE(tracee, 4, "SIGSYS errored out when being handled by an extension");
@@ -239,20 +245,6 @@ static int handle_seccomp_event_common(Tracee *tracee)
 		set_sysnum(tracee, PR_wait4);
 		poke_reg(tracee, SYSARG_4, 0);
 		restart_syscall_after_seccomp(tracee);
-		break;
-
-	case PR_stat64:
-		set_sysnum(tracee, PR_fstatat64);
-		poke_reg(tracee, SYSARG_3, peek_reg(tracee, CURRENT, SYSARG_2));
-		poke_reg(tracee, SYSARG_2, peek_reg(tracee, CURRENT, SYSARG_1));
-		poke_reg(tracee, SYSARG_1, AT_FDCWD);
-		poke_reg(tracee, SYSARG_4, 0);
-		restart_syscall_after_seccomp(tracee);
-		break;
-
-	//this is getting picked up, but only at exit on certain devices
-	case PR_chdir:
-		set_result_after_seccomp(tracee, peek_reg(tracee, CURRENT, SYSARG_RESULT));
 		break;
 
 	case PR_statfs:

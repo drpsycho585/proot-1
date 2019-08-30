@@ -290,6 +290,9 @@ typedef struct tracee {
 	/* Because we can only alloc at enter, but might need the address later */
 	word_t word_store[10];
 
+	bool syscall_void_at_enter_end;
+	word_t syscall_void_at_enter_end_result;
+
 } Tracee;
 
 #define HOST_ROOTFS "/host-rootfs"
