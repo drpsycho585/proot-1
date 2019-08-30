@@ -161,14 +161,6 @@ void translate_syscall(Tracee *tracee)
 		else
 			tracee->status = 1;
 
-		//if the syscall was set to PR_void for any reason, set a flag and save off the result, this will help us deal with a SIGSYS event if not handled properly
-		if (get_sysnum(tracee, CURRENT) == PR_void) {
-			tracee->syscall_void_at_enter_end = true;
-			tracee->syscall_void_at_enter_end_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-		} else {
-			tracee->syscall_void_at_enter_end = false;
-		}
-
 #ifdef HAS_POKEDATA_WORKAROUND
 		if (tracee->pokedata_workaround_cancelled_syscall) {
 			tracee->pokedata_workaround_cancelled_syscall = false;

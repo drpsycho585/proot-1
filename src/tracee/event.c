@@ -640,7 +640,8 @@ int handle_tracee_event(Tracee *tracee, int tracee_status)
 			siginfo_t siginfo = {};
 			ptrace(PTRACE_GETSIGINFO, tracee->pid, NULL, &siginfo);
 			if (siginfo.si_code == SYS_SECCOMP) {
-				if (tracee->skip_next_seccomp_signal) {
+				VERBOSE(tracee, 4, "seccomp_after_ptrace_enter: %d, siginfo.si_syscall: %x, SYSCALL_AVOIDER: %x", seccomp_after_ptrace_enter, siginfo.si_syscall, SYSCALL_AVOIDER);
+				if (tracee->skip_next_seccomp_signal || (seccomp_after_ptrace_enter && siginfo.si_syscall == SYSCALL_AVOIDER)) {
 					VERBOSE(tracee, 4, "suppressed SIGSYS after void syscall");
 					tracee->skip_next_seccomp_signal = false;
 					signal = 0;
