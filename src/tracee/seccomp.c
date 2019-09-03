@@ -126,6 +126,12 @@ static int handle_seccomp_event_common(Tracee *tracee)
 
 	sysnum = get_sysnum(tracee, CURRENT);
 
+	if (tracee->restore_result) {
+		set_result_after_seccomp(tracee, tracee->saved_result);
+		print_current_regs(tracee, 3, "seccomp SIGSYS PR_void fix");
+		return 0;
+	}
+
 	status = notify_extensions(tracee, SIGSYS_OCC, 0, 0);
 	if (status < 0) {
 		VERBOSE(tracee, 4, "SIGSYS errored out when being handled by an extension");
