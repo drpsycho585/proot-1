@@ -375,6 +375,8 @@ int handle_tracee_event(Tracee *tracee, int tracee_status)
 	int signal;
 	bool sysexit_necessary;
 
+	tracee->restore_result = false;
+
 	if (!seccomp_after_ptrace_enter_checked) {
 		seccomp_after_ptrace_enter = getenv("PROOT_ASSUME_NEW_SECCOMP") != NULL;
 		seccomp_after_ptrace_enter_checked = true;
@@ -644,6 +646,10 @@ int handle_tracee_event(Tracee *tracee, int tracee_status)
 					VERBOSE(tracee, 4, "suppressed SIGSYS after void syscall");
 					tracee->skip_next_seccomp_signal = false;
 					signal = 0;
+				} else if (seccomp_after_ptrace_enter && siginfo.si_syscall == SYSCALL_AVOIDER) {
+					tracee->restore_result = true;
+					signal = handle_seccomp_event(tracee);
+					tracee->restore_result = false;
 				} else {
 					signal = handle_seccomp_event(tracee);
 				}
