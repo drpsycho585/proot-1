@@ -199,6 +199,11 @@ void translate_syscall(Tracee *tracee)
 #endif
 
 		print_current_regs(tracee, 5, "sysexit start");
+		if ((get_sysnum(tracee, CURRENT) == PR_void) && (tracee->saved_result != peek_reg(tracee, CURRENT, SYSARG_RESULT))) {
+			poke_reg(tracee, SYSARG_RESULT, tracee->saved_result);
+			push_specific_regs(tracee, false);
+			print_current_regs(tracee, 5, "PR_void result restore");
+		}
 
 		/* Translate the syscall only if it was actually
 		 * requested by the tracee, it is not a syscall
