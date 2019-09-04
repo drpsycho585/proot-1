@@ -138,7 +138,6 @@ void translate_syscall(Tracee *tracee)
 		if (tracee->chain.syscalls == NULL) {
 			save_current_regs(tracee, ORIGINAL);
 			status = translate_syscall_enter(tracee);
-			tracee->saved_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
 			save_current_regs(tracee, MODIFIED);
 		}
 		else {
@@ -207,7 +206,6 @@ void translate_syscall(Tracee *tracee)
 		if (tracee->chain.syscalls == NULL || tracee->chain.sysnum_workaround_state == SYSNUM_WORKAROUND_PROCESS_REPLACED_CALL) {
 			tracee->chain.sysnum_workaround_state = SYSNUM_WORKAROUND_INACTIVE;
 			translate_syscall_exit(tracee);
-			tracee->saved_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
 		}
 		else if (tracee->chain.sysnum_workaround_state == SYSNUM_WORKAROUND_PROCESS_FAULTY_CALL) {
 			tracee->chain.sysnum_workaround_state = SYSNUM_WORKAROUND_PROCESS_REPLACED_CALL;
@@ -275,4 +273,6 @@ void translate_syscall(Tracee *tracee)
 		print_current_regs(tracee, 5, "sysenter end" );
 	else
 		print_current_regs(tracee, 4, "sysexit end");
+
+	tracee->saved_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
 }
