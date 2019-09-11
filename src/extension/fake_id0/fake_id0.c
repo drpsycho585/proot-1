@@ -1069,7 +1069,8 @@ static int handle_sigsys(Tracee *tracee, Config *config)
 	case PR_semctl:
 	case PR_semop:
 		/* These syscalls are fully emulated.  */
-		set_sysnum(tracee, PR_getuid);
+		//temp change to see if PR_getuid32 is more acceptable for armhf devices
+		set_sysnum(tracee, PR_getuid32);
 		return 2;
 	case PR_chroot:	
 		status = handle_chroot_exit_end(tracee, config, true);
