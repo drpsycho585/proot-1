@@ -1043,6 +1043,42 @@ static int handle_sysexit_end(Tracee *tracee, Config *config)
 	}
 }
 
+static int handle_sigsys_setid(Tracee *tracee, Config *config)
+{
+	word_t sysnum;
+
+	sysnum = get_sysnum(tracee, CURRENT);
+	switch (sysnum) {
+
+	case PR_setuid:
+	case PR_setuid32:
+		SETXID(uid, CURRENT);
+
+	case PR_setgid:
+	case PR_setgid32:
+		SETXID(gid, CURRENT);
+
+	case PR_setreuid:
+	case PR_setreuid32:
+		SETREXID(uid, CURRENT);
+
+	case PR_setregid:
+	case PR_setregid32:
+		SETREXID(gid, CURRENT);
+
+	case PR_setresuid:
+	case PR_setresuid32:
+		SETRESXID(u, CURRENT);
+
+	case PR_setresgid:
+	case PR_setresgid32:
+		SETRESXID(g, CURRENT);
+
+	default:
+		return 0;
+	}
+}
+
 static int handle_sigsys(Tracee *tracee, Config *config)
 {
 	word_t sysnum;
@@ -1063,14 +1099,16 @@ static int handle_sigsys(Tracee *tracee, Config *config)
 	case PR_setresuid32:
 	case PR_setresgid:
 	case PR_setresgid32:
+		status = handle_sigsys_setid(tracee, config);
+		if (status < 0)
+			return status;
+		return 1;
 	case PR_shmget:
 	case PR_shmctl:
 	case PR_semget:
 	case PR_semctl:
 	case PR_semop:
-		/* These syscalls are fully emulated.  */
-		//temp change to see if PR_getuid32 is more acceptable for armhf devices
-		set_sysnum(tracee, PR_getuid32);
+		set_sysnum(tracee, PR_getuid);
 		return 2;
 	case PR_chroot:	
 		status = handle_chroot_exit_end(tracee, config, true);
