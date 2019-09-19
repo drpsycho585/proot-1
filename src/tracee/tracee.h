@@ -293,7 +293,8 @@ typedef struct tracee {
 	/* Save off result, in case it is effected by a void system call getting blocked */
 	bool restore_result;
 	word_t saved_result;
-	bool sysexit_complete;
+	bool void_sysenter;
+	bool void_sysexit;
 
 } Tracee;
 

@@ -118,7 +118,8 @@ void translate_syscall(Tracee *tracee)
 		 * of this stage.  */
 		tracee->restore_original_regs = false;
 
-		tracee->sysexit_complete = false;
+		tracee->void_sysexit = false;
+		tracee->void_sysenter = false;
 
 		print_current_regs(tracee, 3, "sysenter start");
 
@@ -163,8 +164,10 @@ void translate_syscall(Tracee *tracee)
 		else
 			tracee->status = 1;
 
-		if (get_sysnum(tracee, CURRENT) == PR_void)
+		if (get_sysnum(tracee, CURRENT) == PR_void) {
+			tracee->void_sysenter = true;
 			tracee->saved_result = status;
+		}
 
 #ifdef HAS_POKEDATA_WORKAROUND
 		if (tracee->pokedata_workaround_cancelled_syscall) {
@@ -284,6 +287,7 @@ void translate_syscall(Tracee *tracee)
 	else {
 		print_current_regs(tracee, 4, "sysexit end");
 		tracee->saved_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
-		tracee->sysexit_complete = true;
+		if (tracee->void_sysenter)
+			tracee->void_sysexit = true;
 	}
 }
