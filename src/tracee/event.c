@@ -646,7 +646,7 @@ int handle_tracee_event(Tracee *tracee, int tracee_status)
 					VERBOSE(tracee, 4, "suppressed SIGSYS after void syscall");
 					tracee->skip_next_seccomp_signal = false;
 					signal = 0;
-				} else if (seccomp_after_ptrace_enter && ((siginfo.si_syscall == SYSCALL_AVOIDER) || void_result_restored)) {
+				} else if (void_result_restored || (seccomp_after_ptrace_enter && (siginfo.si_syscall == SYSCALL_AVOIDER))) {
 					tracee->restore_result = true;
 					signal = handle_seccomp_event(tracee);
 					tracee->restore_result = false;
