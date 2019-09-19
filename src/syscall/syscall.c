@@ -118,7 +118,7 @@ void translate_syscall(Tracee *tracee)
 		 * of this stage.  */
 		tracee->restore_original_regs = false;
 
-		sysexit_complete = false;
+		tracee->sysexit_complete = false;
 
 		print_current_regs(tracee, 3, "sysenter start");
 
