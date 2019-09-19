@@ -118,7 +118,7 @@ void translate_syscall(Tracee *tracee)
 		 * of this stage.  */
 		tracee->restore_original_regs = false;
 
-		void_result_restored = false;
+		sysexit_complete = false;
 
 		print_current_regs(tracee, 3, "sysenter start");
 
@@ -208,7 +208,6 @@ void translate_syscall(Tracee *tracee)
 			poke_reg(tracee, SYSARG_RESULT, tracee->saved_result);
 			push_specific_regs(tracee, false);
 			print_current_regs(tracee, 5, "PR_void result restore");
-			void_result_restored = true;
 		}
 
 		/* Translate the syscall only if it was actually
@@ -285,5 +284,6 @@ void translate_syscall(Tracee *tracee)
 	else {
 		print_current_regs(tracee, 4, "sysexit end");
 		tracee->saved_result = peek_reg(tracee, CURRENT, SYSARG_RESULT);
+		tracee->sysexit_complete = true;
 	}
 }
