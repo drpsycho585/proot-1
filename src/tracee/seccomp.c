@@ -4,6 +4,8 @@
 #include <utime.h>     /* utimbuf, */
 #include <sys/vfs.h>   /* statfs64 */
 #include <string.h>    /* memset   */
+#include <linux/net.h> /* SYS_SENDMMSG */
+#include <assert.h>    /* assert(3), */
 
 #include "extension/extension.h"
 #include "cli/note.h"
@@ -25,7 +27,6 @@ static int handle_seccomp_event_common(Tracee *tracee);
  */
 static void restart_syscall_after_seccomp(Tracee* tracee) {
 	word_t instr_pointer;
-	word_t systrap_size = SYSTRAP_SIZE;
 
 	/* Enable restore regs at end of replaced call.  */
 	tracee->restore_original_regs_after_seccomp_event = true;
@@ -33,13 +34,7 @@ static void restart_syscall_after_seccomp(Tracee* tracee) {
 
 	/* Move the instruction pointer back to the original trap */
 	instr_pointer = peek_reg(tracee, CURRENT, INSTR_POINTER);
-#if defined(ARCH_ARM_EABI)
-	/* On ARM thumb mode systrap size is 2 */
-	if (tracee->_regs[CURRENT].ARM_cpsr & PSR_T_BIT) {
-		systrap_size = 2;
-	}
-#endif
-	poke_reg(tracee, INSTR_POINTER, instr_pointer - systrap_size);
+	poke_reg(tracee, INSTR_POINTER, instr_pointer - get_systrap_size(tracee));
 
 	/* X86 usually uses orig_rax when selecting syscall,
 	 * but as this code is happening outside syscall handler
@@ -233,6 +228,12 @@ static int handle_seccomp_event_common(Tracee *tracee)
 		restart_syscall_after_seccomp(tracee);
 		break;
 
+	case PR_waitpid:
+		set_sysnum(tracee, PR_wait4);
+		poke_reg(tracee, SYSARG_4, 0);
+		restart_syscall_after_seccomp(tracee);
+		break;
+
 	case PR_statfs:
 	{
 		int size;
@@ -348,6 +349,30 @@ static int handle_seccomp_event_common(Tracee *tracee)
 		restart_syscall_after_seccomp(tracee);
 		break;
 	}
+
+#if defined(ARCH_X86) || defined(ARCH_X86_64)
+	case PR_sendmmsg:
+	{
+		/* Convert direct sendmmsg syscall to socketcall.
+		 * This affects only 32-bit x86, in other archs
+		 * bionic doesn't use socketcall() for sendmmsg.  */
+		size_t arg_size = sizeof_word(tracee);
+		assert(arg_size <= sizeof(word_t));
+		byte_t args[arg_size * 4];
+		memset(args, 0, arg_size * 4);
+		*(word_t*)(args) = peek_reg(tracee, CURRENT, SYSARG_1);
+		*(word_t*)(args + arg_size) = peek_reg(tracee, CURRENT, SYSARG_2);
+		*(word_t*)(args + 2 * arg_size) = peek_reg(tracee, CURRENT, SYSARG_3);
+		*(word_t*)(args + 3 * arg_size) = peek_reg(tracee, CURRENT, SYSARG_4);
+		word_t tracee_args = alloc_mem(tracee, arg_size * 4);
+		write_data(tracee, tracee_args, args, arg_size * 4);
+		set_sysnum(tracee, PR_socketcall);
+		poke_reg(tracee, SYSARG_1, SYS_SENDMMSG);
+		poke_reg(tracee, SYSARG_2, tracee_args);
+		restart_syscall_after_seccomp(tracee);
+		break;
+	}
+#endif
 
 	//required for when an extention changes the sysnum to PR_void and that gets picked up by the filtering
 	case PR_void:
