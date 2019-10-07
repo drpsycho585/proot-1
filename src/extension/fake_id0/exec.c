@@ -11,7 +11,7 @@
  */
 int handle_exec_enter_end(Tracee *tracee, Reg filename_sysarg, Config *config)
 {
-	int status, perms;
+	int status;
 	char path[PATH_MAX];
 	struct stat mode;
 
