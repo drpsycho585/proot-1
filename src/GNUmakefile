@@ -208,14 +208,14 @@ LOADER_COMPILE = $($(quiet)LOADER_CC) $(CPPFLAGS) $(CFLAGS) -MD -c $(SRC)$< -o $
 
 loader/loader$1.o: loader/loader.c
 	@mkdir -p $$(dir $$@)
-	$$(LOADER_COMPILE) $LOADER_ARCH_FLAG $$(LOADER_CFLAGS$1)
+	$$(LOADER_COMPILE) $(LOADER_ARCH_FLAG) $$(LOADER_CFLAGS$1)
 
 loader/assembly$1.o: loader/assembly.S
 	@mkdir -p $$(dir $$@)
-	$$(LOADER_COMPILE) $LOADER_ARCH_FLAG $$(LOADER_CFLAGS$1)
+	$$(LOADER_COMPILE) $(LOADER_ARCH_FLAG) $$(LOADER_CFLAGS$1)
 
 loader/loader$1: $$(LOADER$1_OBJECTS)
-	$$($$(quiet)LOADER_LD) $LOADER_ARCH_FLAG -o $$@ $$^ $$(LOADER_LDFLAGS$1)
+	$$($$(quiet)LOADER_LD) $(LOADER_ARCH_FLAG) -o $$@ $$^ $$(LOADER_LDFLAGS$1)
 
 .INTERMEDIATE: loader$1.exe
 loader$1.exe: loader/loader$1
