@@ -194,16 +194,28 @@ $(eval $(call define_from_arch.h,$1,LOADER_ADDRESS))
 LOADER_CFLAGS$1  += -fPIC -ffreestanding $(LOADER_ARCH_CFLAGS$1)
 LOADER_LDFLAGS$1 += -static -nostdlib -Wl$(BUILD_ID_NONE),-Ttext=$(LOADER_ADDRESS$1),-z,noexecstack
 
+LOADER_CC = $(CC)
+LOADER_LD = $(LD)
+LOADER_ARCH_FLAG = $1
+ifeq ($1,-m32)
+ifeq ($(CC),aarch64-linux-android-clang)
+LOADER_CC = arm-linux-androideabi-clang
+LOADER_LD = arm-linux-androideabi-clang
+LOADER_ARCH_FLAG =
+endif
+endif
+LOADER_COMPILE = $($(quiet)LOADER_CC) $(CPPFLAGS) $(CFLAGS) -MD -c $(SRC)$< -o $@
+
 loader/loader$1.o: loader/loader.c
 	@mkdir -p $$(dir $$@)
-	$$(COMPILE) $1 $$(LOADER_CFLAGS$1)
+	$$(LOADER_COMPILE) $LOADER_ARCH_FLAG $$(LOADER_CFLAGS$1)
 
 loader/assembly$1.o: loader/assembly.S
 	@mkdir -p $$(dir $$@)
-	$$(COMPILE) $1 $$(LOADER_CFLAGS$1)
+	$$(LOADER_COMPILE) $LOADER_ARCH_FLAG $$(LOADER_CFLAGS$1)
 
 loader/loader$1: $$(LOADER$1_OBJECTS)
-	$$($$(quiet)LD) $1 -o $$@ $$^ $$(LOADER_LDFLAGS$1)
+	$$($$(quiet)LOADER_LD) $LOADER_ARCH_FLAG -o $$@ $$^ $$(LOADER_LDFLAGS$1)
 
 .INTERMEDIATE: loader$1.exe
 loader$1.exe: loader/loader$1
