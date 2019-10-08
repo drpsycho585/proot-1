@@ -79,7 +79,6 @@ typedef unsigned char byte_t;
 
     #define LOADER_ADDRESS 0x600000000000
     #define HAS_LOADER_32BIT true
-    #define LOADER_ARCH_FLAGS -m32
 
     #define EXEC_PIC_ADDRESS   0x500000000000
     #define INTERP_PIC_ADDRESS 0x6f0000000000
@@ -144,7 +143,6 @@ typedef unsigned char byte_t;
     #define HAS_LOADER_32BIT true
     #define EXEC_PIC_ADDRESS_32   0x0f000000
     #define INTERP_PIC_ADDRESS_32 0x1f000000
-    #define LOADER_ARCH_FLAGS --target=arm-linux-androideabi-clang -march=armv7-a -mfpu=neon -mfloat-abi=softfp -mthumb
 
     /* Syscall -2 appears to cause some odd side effects, use -1. */
     /* See https://github.com/termux/termux-packages/pull/390 */

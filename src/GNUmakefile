@@ -75,10 +75,6 @@ define define_from_arch.h
 $2$1 := $(shell $(CC) $1 -E -dM -DNO_LIBC_HEADER $(SRC)/arch.h | grep -w $2 | cut -f 3 -d ' ')
 endef
 
-define define_from_arch2.h
-$2$1 := $(shell $(CC) $1 -E -dM -DNO_LIBC_HEADER $(SRC)/arch.h | grep -w $2 | cut -f 3- -d ' ')
-endef
-
 $(eval $(call define_from_arch.h,,HAS_LOADER_32BIT))
 $(eval $(call define_from_arch.h,,HAS_POKEDATA_WORKAROUND))
 
@@ -200,14 +196,14 @@ LOADER_LDFLAGS$1 += -static -nostdlib -Wl$(BUILD_ID_NONE),-Ttext=$(LOADER_ADDRES
 
 loader/loader$1.o: loader/loader.c
 	@mkdir -p $$(dir $$@)
-	$$(COMPILE) $2 $$(LOADER_CFLAGS$1)
+	$$(COMPILE) $1 $$(LOADER_CFLAGS$1)
 
 loader/assembly$1.o: loader/assembly.S
 	@mkdir -p $$(dir $$@)
-	$$(COMPILE) $2 $$(LOADER_CFLAGS$1)
+	$$(COMPILE) $1 $$(LOADER_CFLAGS$1)
 
 loader/loader$1: $$(LOADER$1_OBJECTS)
-	$$($$(quiet)LD) $2 -o $$@ $$^ $$(LOADER_LDFLAGS$1)
+	$$($$(quiet)LD) $1 -o $$@ $$^ $$(LOADER_LDFLAGS$1)
 
 .INTERMEDIATE: loader$1.exe
 loader$1.exe: loader/loader$1
@@ -221,8 +217,7 @@ endef
 $(eval $(build_loader))
 
 ifdef HAS_LOADER_32BIT
-$(eval $(call define_from_arch.h,,LOADER_ARCH_FLAGS))
-$(eval $(call build_loader,-m32,$(LOADER_ARCH_FLAGS)))
+$(eval $(call build_loader,-m32))
 endif
 
 loader/loader-info.c: loader/loader
