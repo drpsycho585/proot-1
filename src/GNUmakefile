@@ -218,7 +218,7 @@ $(eval $(build_loader))
 
 ifdef HAS_LOADER_32BIT
 $(eval $(call define_from_arch.h,,LOADER_ARCH_FLAGS))
-$(eval $(call build_loader,-m32),$(LOADER_ARCH_FLAGS))
+$(eval $(call build_loader,-m32,$(LOADER_ARCH_FLAGS)))
 endif
 
 loader/loader-info.c: loader/loader
